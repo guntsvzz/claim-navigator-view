@@ -195,7 +195,7 @@ function OverviewPage() {
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {attentionSignals.map((s) => (
-            <AttentionTile key={s.key} {...s} />
+            <AttentionTile key={s.key} label={s.label} detail={s.detail} count={s.count} tone={s.tone} />
           ))}
         </div>
       </Panel>
