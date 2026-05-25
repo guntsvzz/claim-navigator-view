@@ -9,26 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WorkQueueRouteImport } from './routes/work-queue'
-import { Route as PerformanceRouteImport } from './routes/performance'
-import { Route as AreaMapRouteImport } from './routes/area-map'
 import { Route as IndexRouteImport } from './routes/index'
 
-const WorkQueueRoute = WorkQueueRouteImport.update({
-  id: '/work-queue',
-  path: '/work-queue',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PerformanceRoute = PerformanceRouteImport.update({
-  id: '/performance',
-  path: '/performance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AreaMapRoute = AreaMapRouteImport.update({
-  id: '/area-map',
-  path: '/area-map',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,61 +19,28 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/area-map': typeof AreaMapRoute
-  '/performance': typeof PerformanceRoute
-  '/work-queue': typeof WorkQueueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/area-map': typeof AreaMapRoute
-  '/performance': typeof PerformanceRoute
-  '/work-queue': typeof WorkQueueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/area-map': typeof AreaMapRoute
-  '/performance': typeof PerformanceRoute
-  '/work-queue': typeof WorkQueueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/area-map' | '/performance' | '/work-queue'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/area-map' | '/performance' | '/work-queue'
-  id: '__root__' | '/' | '/area-map' | '/performance' | '/work-queue'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AreaMapRoute: typeof AreaMapRoute
-  PerformanceRoute: typeof PerformanceRoute
-  WorkQueueRoute: typeof WorkQueueRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/work-queue': {
-      id: '/work-queue'
-      path: '/work-queue'
-      fullPath: '/work-queue'
-      preLoaderRoute: typeof WorkQueueRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/performance': {
-      id: '/performance'
-      path: '/performance'
-      fullPath: '/performance'
-      preLoaderRoute: typeof PerformanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/area-map': {
-      id: '/area-map'
-      path: '/area-map'
-      fullPath: '/area-map'
-      preLoaderRoute: typeof AreaMapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -104,10 +53,17 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AreaMapRoute: AreaMapRoute,
-  PerformanceRoute: PerformanceRoute,
-  WorkQueueRoute: WorkQueueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
