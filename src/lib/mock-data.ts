@@ -140,17 +140,83 @@ export const insurerPerf = insurers.map((p, i) => ({
   avgSla: 110 + i * 22,
 }));
 
-export const provinceData = [
-  { province: "Bangkok", th: "กรุงเทพมหานคร", claims: 8420, payable: 124_000_000, pending: 612, sla: 132 },
-  { province: "Chiang Mai", th: "เชียงใหม่", claims: 2140, payable: 32_400_000, pending: 184, sla: 158 },
-  { province: "Phuket", th: "ภูเก็ต", claims: 1680, payable: 28_900_000, pending: 142, sla: 144 },
-  { province: "Chonburi", th: "ชลบุรี", claims: 1520, payable: 24_100_000, pending: 128, sla: 138 },
-  { province: "Khon Kaen", th: "ขอนแก่น", claims: 1240, payable: 17_800_000, pending: 96, sla: 162 },
-  { province: "Songkhla", th: "สงขลา", claims: 980, payable: 14_200_000, pending: 78, sla: 156 },
-  { province: "Nakhon Ratchasima", th: "นครราชสีมา", claims: 920, payable: 12_900_000, pending: 72, sla: 168 },
-  { province: "Surat Thani", th: "สุราษฎร์ธานี", claims: 780, payable: 10_400_000, pending: 58, sla: 172 },
-  { province: "Udon Thani", th: "อุดรธานี", claims: 640, payable: 8_900_000, pending: 48, sla: 178 },
-  { province: "Rayong", th: "ระยอง", claims: 580, payable: 7_800_000, pending: 42, sla: 154 },
+import { TH_PROVINCES, type ThRegion } from "./thailand-geo";
+
+const PROVINCE_TH: Record<string, string> = {
+  "Bangkok Metropolis": "กรุงเทพมหานคร",
+  "Chiang Mai": "เชียงใหม่",
+  "Phuket": "ภูเก็ต",
+  "Chon Buri": "ชลบุรี",
+  "Khon Kaen": "ขอนแก่น",
+  "Songkhla": "สงขลา",
+  "Nakhon Ratchasima": "นครราชสีมา",
+  "Surat Thani": "สุราษฎร์ธานี",
+  "Udon Thani": "อุดรธานี",
+  "Rayong": "ระยอง",
+};
+
+// Seed deterministic mock metrics per province so the map is reproducible.
+function seedRand(seed: number) {
+  let s = seed % 2147483647;
+  return () => ((s = (s * 16807) % 2147483647) / 2147483647);
+}
+
+export type ProvinceRow = {
+  province: string;
+  th: string;
+  region: ThRegion;
+  claims: number;
+  payable: number;
+  pending: number;
+  sla: number;
+};
+
+export const provinceData: ProvinceRow[] = TH_PROVINCES.map((p, i) => {
+  const rand = seedRand(i * 131 + 7);
+  // Bangkok scaled up
+  const base = p.name === "Bangkok Metropolis" ? 8000 : 200 + Math.floor(rand() * 1800);
+  const claims = base + Math.floor(rand() * 200);
+  const avgClaim = 11_000 + Math.floor(rand() * 4000);
+  return {
+    province: p.name,
+    th: PROVINCE_TH[p.name] ?? p.name,
+    region: p.region,
+    claims,
+    payable: claims * avgClaim,
+    pending: Math.floor(claims * (0.05 + rand() * 0.06)),
+    sla: 110 + Math.floor(rand() * 90),
+  };
+});
+
+export const attentionSignals = [
+  {
+    key: "spike",
+    label: "Claim Spike",
+    detail: "Today +38% vs 7-day avg",
+    count: 312,
+    tone: "warning" as const,
+  },
+  {
+    key: "sla",
+    label: "SLA Exceeded",
+    detail: "Claims past target turnaround",
+    count: 96,
+    tone: "destructive" as const,
+  },
+  {
+    key: "reject",
+    label: "Rejection Rate Up",
+    detail: "Policy exclusions trending",
+    count: 48,
+    tone: "destructive" as const,
+  },
+  {
+    key: "aging",
+    label: "Aging > 7 days",
+    detail: "Need immediate follow-up",
+    count: 1099,
+    tone: "warning" as const,
+  },
 ];
 
 export const diagnosisGroups = [
