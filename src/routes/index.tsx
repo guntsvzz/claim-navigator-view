@@ -40,6 +40,8 @@ import {
   providers,
   statusBreakdown,
   trendData,
+  icd10Top10,
+  icd9Top10,
 } from "@/lib/mock-data";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Panel } from "@/components/dashboard/panel";
