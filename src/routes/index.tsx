@@ -40,6 +40,8 @@ import {
   providers,
   statusBreakdown,
   trendData,
+  icd10Top10,
+  icd9Top10,
 } from "@/lib/mock-data";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Panel } from "@/components/dashboard/panel";
@@ -410,6 +412,20 @@ function OverviewPage() {
         </Panel>
       </div>
 
+      {/* ICD Top 10 */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <IcdPanel
+          title="Top 10 ICD-10 Diagnoses"
+          subtitle="Most frequent diagnosis claim transactions"
+          rows={icd10Top10}
+        />
+        <IcdPanel
+          title="Top 10 ICD-9 Procedures"
+          subtitle="Most frequent procedure claim transactions"
+          rows={icd9Top10}
+        />
+      </div>
+
       {/* Thailand Map */}
       <ThailandMap />
 
@@ -441,6 +457,66 @@ function OverviewPage() {
         </div>
       </Panel>
     </div>
+  );
+}
+
+function IcdPanel({
+  title,
+  subtitle,
+  rows,
+}: {
+  title: string;
+  subtitle: string;
+  rows: { code: string; th: string; en: string; count: number; payable: number }[];
+}) {
+  const max = Math.max(...rows.map((r) => r.count));
+  const total = rows.reduce((s, r) => s + r.count, 0);
+  return (
+    <Panel
+      title={title}
+      subtitle={subtitle}
+      actions={
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Layers className="h-3 w-3" /> {fmtNum(total)} txns
+        </span>
+      }
+    >
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <th className="pb-2 text-left">#</th>
+            <th className="pb-2 text-left">Code</th>
+            <th className="pb-2 text-left">Description</th>
+            <th className="pb-2 text-right">Claims</th>
+            <th className="pb-2 text-right">Payable</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((r, i) => (
+            <tr key={r.code} className="hover:bg-accent/30">
+              <td className="py-2 font-mono text-xs text-muted-foreground">{i + 1}</td>
+              <td className="py-2 font-mono text-xs font-semibold">{r.code}</td>
+              <td className="py-2">
+                <div className="font-medium leading-tight">{r.en}</div>
+                <div className="text-[11px] text-muted-foreground">{r.th}</div>
+              </td>
+              <td className="py-2 text-right">
+                <div className="font-mono tabular-nums">{fmtNum(r.count)}</div>
+                <div className="mt-1 h-1 w-20 ml-auto overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary"
+                    style={{ width: `${(r.count / max) * 100}%` }}
+                  />
+                </div>
+              </td>
+              <td className="py-2 text-right font-mono tabular-nums text-success">
+                ฿{fmtBaht(r.payable)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
   );
 }
 
