@@ -230,6 +230,32 @@ export const diagnosisGroups = [
   { code: "C50", th: "มะเร็งเต้านม", en: "Breast Cancer", count: 320, cost: 28_100_000, chronic: true },
 ];
 
+export const icd10Top10 = [
+  { code: "I10", th: "ความดันโลหิตสูง", en: "Essential hypertension", count: 1820, payable: 18_400_000 },
+  { code: "E11", th: "เบาหวานชนิดที่ 2", en: "Type 2 diabetes mellitus", count: 1640, payable: 22_100_000 },
+  { code: "J18", th: "ปอดอักเสบ", en: "Pneumonia, unspecified", count: 1240, payable: 28_900_000 },
+  { code: "K29", th: "กระเพาะอักเสบ", en: "Gastritis and duodenitis", count: 1180, payable: 9_800_000 },
+  { code: "M54", th: "ปวดหลัง", en: "Dorsalgia (back pain)", count: 980, payable: 7_400_000 },
+  { code: "N39", th: "ติดเชื้อทางเดินปัสสาวะ", en: "UTI, site not specified", count: 820, payable: 6_900_000 },
+  { code: "J06", th: "ติดเชื้อทางเดินหายใจส่วนบน", en: "Acute upper respiratory infection", count: 760, payable: 5_200_000 },
+  { code: "A09", th: "ท้องเสีย", en: "Infectious gastroenteritis", count: 690, payable: 4_800_000 },
+  { code: "I25", th: "โรคหัวใจขาดเลือด", en: "Chronic ischemic heart disease", count: 640, payable: 32_400_000 },
+  { code: "R51", th: "ปวดศีรษะ", en: "Headache", count: 540, payable: 3_100_000 },
+];
+
+export const icd9Top10 = [
+  { code: "99.04", th: "การให้เลือด", en: "Transfusion of packed cells", count: 920, payable: 12_400_000 },
+  { code: "88.72", th: "อัลตราซาวด์หัวใจ", en: "Diagnostic ultrasound of heart", count: 780, payable: 9_800_000 },
+  { code: "45.13", th: "ส่องกล้องทางเดินอาหารส่วนบน", en: "Upper GI endoscopy", count: 720, payable: 14_600_000 },
+  { code: "39.95", th: "ฟอกไต", en: "Hemodialysis", count: 680, payable: 24_200_000 },
+  { code: "81.54", th: "ผ่าตัดเปลี่ยนข้อเข่า", en: "Total knee replacement", count: 410, payable: 31_500_000 },
+  { code: "47.09", th: "ผ่าตัดไส้ติ่ง", en: "Appendectomy", count: 380, payable: 11_200_000 },
+  { code: "74.1", th: "ผ่าตัดคลอด", en: "Cesarean section, low cervical", count: 340, payable: 18_900_000 },
+  { code: "51.23", th: "ผ่าตัดถุงน้ำดี (laparoscopic)", en: "Laparoscopic cholecystectomy", count: 320, payable: 16_400_000 },
+  { code: "36.07", th: "ใส่ขดลวดหลอดเลือดหัวใจ", en: "Coronary stent insertion", count: 290, payable: 42_800_000 },
+  { code: "00.66", th: "ขยายหลอดเลือดหัวใจ (PCI)", en: "Percutaneous coronary intervention", count: 260, payable: 38_600_000 },
+];
+
 export const financialBreakdown = [
   { label: "Total Incurred", value: 284_500_000 },
   { label: "Provider Discount", value: -18_200_000 },
