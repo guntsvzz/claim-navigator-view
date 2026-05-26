@@ -412,6 +412,20 @@ function OverviewPage() {
         </Panel>
       </div>
 
+      {/* ICD Top 10 */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <IcdPanel
+          title="Top 10 ICD-10 Diagnoses"
+          subtitle="Most frequent diagnosis claim transactions"
+          rows={icd10Top10}
+        />
+        <IcdPanel
+          title="Top 10 ICD-9 Procedures"
+          subtitle="Most frequent procedure claim transactions"
+          rows={icd9Top10}
+        />
+      </div>
+
       {/* Thailand Map */}
       <ThailandMap />
 
