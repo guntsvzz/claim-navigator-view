@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Area,
@@ -73,8 +74,17 @@ function OverviewPage() {
   const { view, entityId, setEntityId } = useView();
   const k = view === "insurer" ? kpiInsurer : kpiProvider;
   const list = view === "insurer" ? insurers : providers;
+  const isOverview = entityId === "ALL";
   const entity = list.find((e) => e.id === entityId);
   const Icon = view === "insurer" ? Building2 : Hospital;
+  const overviewLabel = view === "insurer" ? "All Insurers" : "All Providers";
+
+  const [updatedAt, setUpdatedAt] = useState<string>("");
+  useEffect(() => {
+    setUpdatedAt(
+      new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    );
+  }, []);
 
   const workQueueCount = k.pending + Math.round(k.aging * 1.4);
 
@@ -85,15 +95,19 @@ function OverviewPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-              {view} View · Daily Operation
+              {view} View · {isOverview ? "Portfolio Overview" : "Daily Operation"}
             </div>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">
-              {entity?.name_en ?? "All"}
+              {isOverview ? overviewLabel : entity?.name_en ?? overviewLabel}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {view === "insurer"
-                ? "Monitoring all claims under the selected insurer portfolio."
-                : "Monitoring claims submitted by the selected provider."}
+              {isOverview
+                ? view === "insurer"
+                  ? `Aggregated view across all ${list.length} insurer portfolios. Drill down by selecting a company.`
+                  : `Aggregated view across all ${list.length} providers. Drill down by selecting a hospital.`
+                : view === "insurer"
+                  ? "Monitoring all claims under the selected insurer portfolio."
+                  : "Monitoring claims submitted by the selected provider."}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -104,6 +118,12 @@ function OverviewPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="ALL">
+                    <span className="mr-2 font-mono text-xs text-muted-foreground">
+                      ALL
+                    </span>
+                    {overviewLabel} (Overview)
+                  </SelectItem>
                   {list.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
                       <span className="mr-2 font-mono text-xs text-muted-foreground">
@@ -116,15 +136,12 @@ function OverviewPage() {
               </Select>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" /> Updated{" "}
-              {new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              <Clock className="h-3.5 w-3.5" /> Updated {updatedAt || "--:--"}
             </div>
           </div>
         </div>
       </section>
+
 
 
       {/* KPI Row */}
