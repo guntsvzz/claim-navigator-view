@@ -4,7 +4,7 @@ import { Activity, Bell, CalendarDays, Filter } from "lucide-react";
 export function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-6">
+      <div className="flex h-16 items-center gap-3 px-6">
         <div className="flex items-center gap-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
             <Activity className="h-5 w-5" />

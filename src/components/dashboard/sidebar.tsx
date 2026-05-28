@@ -48,13 +48,13 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-1 px-3 py-4">
         {primaryNav.map((item, idx) => (
-          <NavItem key={item.key} {...item} active={idx === 0} />
+          <NavItem key={item.key} label={item.label} icon={item.icon} active={idx === 0} />
         ))}
 
         <div className="my-3 border-t border-border" />
 
         {secondaryNav.map((item) => (
-          <NavItem key={item.key} {...item} />
+          <NavItem key={item.key} label={item.label} icon={item.icon} />
         ))}
       </nav>
     </aside>

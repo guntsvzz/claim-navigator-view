@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ViewCtx } from "@/lib/view-store";
 import type { ViewMode } from "@/lib/mock-data";
 import { TopBar } from "./top-bar";
+import { Sidebar } from "./sidebar";
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewMode>("insurer");
@@ -19,9 +20,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         setEntityId,
       }}
     >
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
-        <TopBar />
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-6">{children}</main>
+      <div className="flex min-h-screen bg-background text-foreground">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar />
+          <main className="flex-1 px-6 py-6">{children}</main>
+        </div>
       </div>
     </ViewCtx.Provider>
   );
