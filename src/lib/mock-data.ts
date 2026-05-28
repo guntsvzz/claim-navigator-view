@@ -44,14 +44,13 @@ export const kpiProvider = {
 };
 
 export const trendData = Array.from({ length: 30 }).map((_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - (29 - i));
-  const base = 280 + Math.sin(i / 3) * 60 + Math.random() * 80;
+  const d = new Date(2026, 2, 1 + i);
+  const base = 280 + Math.sin(i / 3) * 60 + ((i * 53) % 80);
   return {
     date: d.toISOString().slice(5, 10),
     count: Math.round(base),
-    payable: Math.round(base * 11000 + Math.random() * 200000),
-    incurred: Math.round(base * 14500 + Math.random() * 220000),
+    payable: Math.round(base * 11000 + ((i * 7919) % 200000)),
+    incurred: Math.round(base * 14500 + ((i * 6271) % 220000)),
   };
 });
 
@@ -123,8 +122,8 @@ export const workQueue = Array.from({ length: 24 }).map((_, i) => {
 
 export const providerPerf = providers.map((p, i) => ({
   ...p,
-  claims: 1820 - i * 180 + Math.round(Math.random() * 100),
-  payable: (32 - i * 3) * 1_000_000 + Math.random() * 1_000_000,
+  claims: 1820 - i * 180 + ((i * 37) % 100),
+  payable: (32 - i * 3) * 1_000_000 + ((i * 91_337) % 1_000_000),
   pendingRate: 4 + i * 0.8,
   rejectRate: 1.2 + i * 0.4,
   avgSla: 90 + i * 18,
@@ -133,8 +132,8 @@ export const providerPerf = providers.map((p, i) => ({
 
 export const insurerPerf = insurers.map((p, i) => ({
   ...p,
-  claims: 5800 - i * 620 + Math.round(Math.random() * 200),
-  payable: (62 - i * 7) * 1_000_000 + Math.random() * 2_000_000,
+  claims: 5800 - i * 620 + ((i * 73) % 200),
+  payable: (62 - i * 7) * 1_000_000 + ((i * 181_337) % 2_000_000),
   pending: 320 - i * 38,
   rejected: 96 - i * 12,
   avgSla: 110 + i * 22,
