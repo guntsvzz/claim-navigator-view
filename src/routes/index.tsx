@@ -70,7 +70,7 @@ export const Route = createFileRoute("/")({
 });
 
 function OverviewPage() {
-  const { view, setView, entityId, setEntityId } = useView();
+  const { view, entityId, setEntityId } = useView();
   const k = view === "insurer" ? kpiInsurer : kpiProvider;
   const list = view === "insurer" ? insurers : providers;
   const entity = list.find((e) => e.id === entityId);
@@ -80,26 +80,23 @@ function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* View switcher at top */}
+      {/* Page header */}
       <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-              {(["insurer", "provider"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={cn(
-                    "rounded-[5px] px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all",
-                    view === v
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {v} View
-                </button>
-              ))}
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+              {view} View · Daily Operation
             </div>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight">
+              {entity?.name_en ?? "All"}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {view === "insurer"
+                ? "Monitoring all claims under the selected insurer portfolio."
+                : "Monitoring claims submitted by the selected provider."}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
               <Select value={entityId} onValueChange={setEntityId}>
@@ -118,29 +115,17 @@ function OverviewPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> Updated{" "}
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" /> Updated{" "}
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-            {view} View · Daily Operation
-          </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">
-            {entity?.name_en ?? "All"}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {view === "insurer"
-              ? "Monitoring all claims under the selected insurer portfolio."
-              : "Monitoring claims submitted by the selected provider."}
-          </p>
         </div>
       </section>
+
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
