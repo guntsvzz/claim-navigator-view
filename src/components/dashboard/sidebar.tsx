@@ -1,22 +1,36 @@
-import { Building2, Hospital, Gauge, Users, Share2, ListTodo, UsersRound, Workflow, Settings } from "lucide-react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import {
+  Building2,
+  Hospital,
+  Gauge,
+  Briefcase,
+  Users,
+  Share2,
+  ListTodo,
+  UsersRound,
+  Workflow,
+  Settings,
+} from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { cn } from "@/lib/utils";
 
 const primaryNav = [
-  { key: "dashboard", label: "Dashboard", icon: Gauge },
-  { key: "account", label: "Account 360", icon: Users },
-  { key: "social", label: "Social Listener", icon: Share2 },
-  { key: "task", label: "Task", icon: ListTodo },
-];
+  { key: "dashboard", label: "Dashboard", icon: Gauge, to: "/" },
+  { key: "executive", label: "Executive Dashboard", icon: Briefcase, to: "/executive" },
+  { key: "account", label: "Account 360", icon: Users, to: "/account-360" },
+  { key: "social", label: "Social Listener", icon: Share2, to: "/social-listener" },
+  { key: "task", label: "Task", icon: ListTodo, to: "/task" },
+] as const;
 
 const secondaryNav = [
-  { key: "users", label: "User Management", icon: UsersRound },
-  { key: "team", label: "Team Management", icon: Workflow },
-  { key: "system", label: "System Settings", icon: Settings },
-];
+  { key: "users", label: "User Management", icon: UsersRound, to: "/user-management" },
+  { key: "team", label: "Team Management", icon: Workflow, to: "/team-management" },
+  { key: "system", label: "System Settings", icon: Settings, to: "/system-settings" },
+] as const;
 
 export function Sidebar() {
   const { view, setView } = useView();
+  const path = useRouterState({ select: (s) => s.location.pathname });
 
   return (
     <aside className="hidden w-[260px] shrink-0 border-r border-border bg-card md:flex md:flex-col">
@@ -47,14 +61,14 @@ export function Sidebar() {
       <div className="border-t border-border" />
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {primaryNav.map((item, idx) => (
-          <NavItem key={item.key} label={item.label} icon={item.icon} active={idx === 0} />
+        {primaryNav.map((item) => (
+          <NavItem key={item.key} {...item} active={path === item.to} />
         ))}
 
         <div className="my-3 border-t border-border" />
 
         {secondaryNav.map((item) => (
-          <NavItem key={item.key} label={item.label} icon={item.icon} />
+          <NavItem key={item.key} {...item} active={path === item.to} />
         ))}
       </nav>
     </aside>
@@ -64,14 +78,17 @@ export function Sidebar() {
 function NavItem({
   label,
   icon: Icon,
+  to,
   active,
 }: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  to: string;
   active?: boolean;
 }) {
   return (
-    <button
+    <Link
+      to={to}
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
         active
@@ -81,6 +98,6 @@ function NavItem({
     >
       <Icon className="h-[18px] w-[18px]" />
       {label}
-    </button>
+    </Link>
   );
 }
