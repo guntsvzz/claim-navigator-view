@@ -6,7 +6,7 @@ import { Sidebar } from "./sidebar";
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewMode>("insurer");
-  const [entityId, setEntityId] = useState("INS001");
+  const [entityId, setEntityId] = useState("ALL");
 
   return (
     <ViewCtx.Provider
@@ -14,7 +14,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         view,
         setView: (v) => {
           setView(v);
-          setEntityId(v === "insurer" ? "INS001" : "PRV001");
+          setEntityId("ALL");
         },
         entityId,
         setEntityId,
