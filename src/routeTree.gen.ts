@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SocialListenerRouteImport } from './routes/social-listener'
 import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SocialListenerRoute = SocialListenerRouteImport.update({
+  id: '/social-listener',
+  path: '/social-listener',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExecutiveRoute = ExecutiveRouteImport.update({
   id: '/executive',
   path: '/executive',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/executive'
+  fullPaths: '/' | '/executive' | '/social-listener'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/executive'
-  id: '__root__' | '/' | '/executive'
+  to: '/' | '/executive' | '/social-listener'
+  id: '__root__' | '/' | '/executive' | '/social-listener'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutiveRoute: typeof ExecutiveRoute
+  SocialListenerRoute: typeof SocialListenerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/social-listener': {
+      id: '/social-listener'
+      path: '/social-listener'
+      fullPath: '/social-listener'
+      preLoaderRoute: typeof SocialListenerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/executive': {
       id: '/executive'
       path: '/executive'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutiveRoute: ExecutiveRoute,
+  SocialListenerRoute: SocialListenerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
