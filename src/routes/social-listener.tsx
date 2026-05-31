@@ -682,9 +682,350 @@ function SocialListenerPage() {
           </Panel>
         </div>
       </div>
+
+      {/* Part 2: Data source configuration */}
+      <DataSourcesSection />
     </div>
   );
 }
+
+function DataSourcesSection() {
+  const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+  const [newUrl, setNewUrl] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newScope, setNewScope] = useState<Target>("industry");
+  const [newEntity, setNewEntity] = useState("");
+  const [newKind, setNewKind] = useState<"rss" | "page" | "social">("page");
+
+  // Manual news upload state
+  const [mTitle, setMTitle] = useState("");
+  const [mUrl, setMUrl] = useState("");
+  const [mSummary, setMSummary] = useState("");
+  const [mScope, setMScope] = useState<Target>("industry");
+  const [mSentiment, setMSentiment] = useState<Sentiment>("negative");
+  const [mSeverity, setMSeverity] = useState<Severity>("med");
+  const [uploaded, setUploaded] = useState<
+    { id: string; title: string; scope: Target; sentiment: Sentiment; severity: Severity; time: string }[]
+  >([]);
+
+  const addSource = () => {
+    if (!newUrl.trim()) return;
+    setSources((s) => [
+      {
+        id: `s${Date.now()}`,
+        url: newUrl.trim(),
+        label: newLabel.trim() || newUrl.trim(),
+        scope: newScope,
+        entity: newEntity.trim() || undefined,
+        kind: newKind,
+        active: true,
+      },
+      ...s,
+    ]);
+    setNewUrl("");
+    setNewLabel("");
+    setNewEntity("");
+  };
+
+  const toggleSource = (id: string) =>
+    setSources((s) => s.map((x) => (x.id === id ? { ...x, active: !x.active } : x)));
+  const removeSource = (id: string) => setSources((s) => s.filter((x) => x.id !== id));
+
+  const submitManual = () => {
+    if (!mTitle.trim()) return;
+    setUploaded((u) => [
+      {
+        id: `m${Date.now()}`,
+        title: mTitle.trim(),
+        scope: mScope,
+        sentiment: mSentiment,
+        severity: mSeverity,
+        time: "เพิ่งอัปโหลด",
+      },
+      ...u,
+    ]);
+    setMTitle("");
+    setMUrl("");
+    setMSummary("");
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Configuration
+          </div>
+          <h2 className="mt-0.5 text-lg font-bold tracking-tight">Online & Offline data sources</h2>
+          <p className="text-xs text-muted-foreground">
+            กำหนดเอง URL ที่อยากให้ระบบติดตาม หรืออัปโหลดข่าวที่เจอเองพร้อมระบุ sentiment / severity
+          </p>
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {sources.filter((s) => s.active).length} active · {sources.length} total
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Online sources */}
+        <Panel
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Globe className="h-4 w-4" /> Online sources (URL)
+            </span>
+          }
+          subtitle="RSS / หน้าข่าว / โซเชียลที่อยากให้ระบบ crawl"
+        >
+          <div className="space-y-3">
+            <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <Input
+                  placeholder="https://example.com/news หรือ RSS feed"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  className="h-8 text-xs md:col-span-2"
+                />
+                <Input
+                  placeholder="Label (เช่น คปภ. — ข่าวประชาสัมพันธ์)"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  className="h-8 text-xs"
+                />
+                <Input
+                  placeholder="Entity (optional) เช่น AIA Thailand"
+                  value={newEntity}
+                  onChange={(e) => setNewEntity(e.target.value)}
+                  className="h-8 text-xs"
+                />
+                <ScopePicker value={newScope} onChange={setNewScope} />
+                <div className="flex items-center justify-between gap-2">
+                  <KindPicker value={newKind} onChange={setNewKind} />
+                  <button
+                    onClick={addSource}
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> เพิ่ม source
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <ul className="divide-y divide-border rounded-md border border-border">
+              {sources.map((s) => {
+                const meta = TARGET_META[s.scope];
+                const KindIcon = s.kind === "rss" ? Rss : s.kind === "social" ? MessageSquare : Globe;
+                return (
+                  <li key={s.id} className="flex items-start gap-3 px-3 py-2.5">
+                    <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted", meta.tone)}>
+                      <KindIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">{s.label}</span>
+                        <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground/70">
+                          {meta.label}
+                        </span>
+                        {s.entity && (
+                          <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-foreground/70">
+                            {s.entity}
+                          </span>
+                        )}
+                      </div>
+                      <a
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-muted-foreground hover:text-primary"
+                      >
+                        <Link2 className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{s.url}</span>
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => toggleSource(s.id)}
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                          s.active
+                            ? "bg-success/15 text-success"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {s.active ? "Active" : "Paused"}
+                      </button>
+                      <button
+                        onClick={() => removeSource(s.id)}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Panel>
+
+        {/* Manual news upload */}
+        <Panel
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Upload className="h-4 w-4" /> Manual news upload
+            </span>
+          }
+          subtitle="เจอข่าวเอง? เพิ่มเข้าฟีดและกำหนดความเสี่ยงได้เลย"
+        >
+          <div className="space-y-2.5">
+            <Input
+              placeholder="หัวข้อข่าว"
+              value={mTitle}
+              onChange={(e) => setMTitle(e.target.value)}
+              className="h-8 text-xs"
+            />
+            <Input
+              placeholder="URL ที่มา (optional)"
+              value={mUrl}
+              onChange={(e) => setMUrl(e.target.value)}
+              className="h-8 text-xs"
+            />
+            <Textarea
+              placeholder="สรุปสั้น ๆ / ทำไมถึง flag"
+              value={mSummary}
+              onChange={(e) => setMSummary(e.target.value)}
+              className="min-h-[70px] text-xs"
+            />
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              <ScopePicker value={mScope} onChange={setMScope} compact />
+              <SentimentPicker2 value={mSentiment} onChange={setMSentiment} />
+              <SeverityPicker value={mSeverity} onChange={setMSeverity} />
+            </div>
+            <button
+              onClick={submitManual}
+              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <FileText className="h-3.5 w-3.5" /> เพิ่มเข้าฟีด
+            </button>
+
+            {uploaded.length > 0 && (
+              <ul className="mt-3 space-y-2 border-t border-border pt-3">
+                {uploaded.map((u) => (
+                  <li key={u.id} className="flex items-start gap-2 rounded-md bg-muted/40 p-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{u.title}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="rounded-full bg-card px-1.5 py-0.5 font-semibold uppercase tracking-wider">
+                          {TARGET_META[u.scope].label}
+                        </span>
+                        <span className={cn("rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wider", SENT_STYLE[u.sentiment])}>
+                          {u.sentiment}
+                        </span>
+                        <span className={cn("rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wider", SEV_STYLE[u.severity])}>
+                          {u.severity}
+                        </span>
+                        <span>· {u.time}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function ScopePicker({
+  value,
+  onChange,
+  compact,
+}: {
+  value: Target;
+  onChange: (t: Target) => void;
+  compact?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Target)}
+      className={cn(
+        "h-8 rounded-md border border-input bg-transparent px-2 text-xs",
+        compact ? "" : "md:col-span-1",
+      )}
+    >
+      {(Object.keys(TARGET_META) as Target[]).map((t) => (
+        <option key={t} value={t}>
+          Scope: {TARGET_META[t].label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function KindPicker({
+  value,
+  onChange,
+}: {
+  value: "rss" | "page" | "social";
+  onChange: (k: "rss" | "page" | "social") => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as "rss" | "page" | "social")}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+    >
+      <option value="page">Type: Web page</option>
+      <option value="rss">Type: RSS feed</option>
+      <option value="social">Type: Social</option>
+    </select>
+  );
+}
+
+function SentimentPicker2({
+  value,
+  onChange,
+}: {
+  value: Sentiment;
+  onChange: (s: Sentiment) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Sentiment)}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+    >
+      <option value="positive">Sentiment: Positive</option>
+      <option value="neutral">Sentiment: Neutral</option>
+      <option value="negative">Sentiment: Negative</option>
+    </select>
+  );
+}
+
+function SeverityPicker({
+  value,
+  onChange,
+}: {
+  value: Severity;
+  onChange: (s: Severity) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Severity)}
+      className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+    >
+      <option value="low">Severity: Low</option>
+      <option value="med">Severity: Medium</option>
+      <option value="high">Severity: High</option>
+      <option value="critical">Severity: Critical</option>
+    </select>
+  );
+}
+
 
 function Hotness() {
   return (
