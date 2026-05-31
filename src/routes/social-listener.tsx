@@ -284,22 +284,53 @@ const CATEGORY_META: Record<
   fraud: { label: "Fraud Signals", icon: ShieldAlert, tone: "text-destructive" },
 };
 
+const TARGET_META: Record<
+  Target,
+  { label: string; sub: string; icon: typeof Building2; tone: string }
+> = {
+  bvtpa: { label: "BVTPA", sub: "Talk เกี่ยวกับเรา", icon: Sparkles, tone: "text-info" },
+  insurer: { label: "Insurers", sub: "บริษัทประกันลูกค้า", icon: Building2, tone: "text-primary" },
+  provider: { label: "Providers", sub: "โรงพยาบาล / คลินิก", icon: Hospital, tone: "text-success" },
+  industry: { label: "Industry / Regulator", sub: "คปภ. ปปง. กฎหมาย", icon: Gavel, tone: "text-warning" },
+};
+
+type ConfiguredSource = {
+  id: string;
+  url: string;
+  label: string;
+  scope: Target;
+  entity?: string;
+  kind: "rss" | "page" | "social";
+  active: boolean;
+};
+
+const SEED_SOURCES: ConfiguredSource[] = [
+  { id: "s1", url: "https://www.oic.or.th/th/news", label: "คปภ. — ข่าวประชาสัมพันธ์", scope: "industry", kind: "page", active: true },
+  { id: "s2", url: "https://www.amlo.go.th/index.php/th/news", label: "ปปง. — ข่าวสาร", scope: "industry", kind: "page", active: true },
+  { id: "s3", url: "https://www.aia.co.th/th/about-aia/media-centre.html", label: "AIA Media Centre", scope: "insurer", entity: "AIA Thailand", kind: "page", active: true },
+  { id: "s4", url: "https://www.bangkokhospital.com/news", label: "Bangkok Hospital — News", scope: "provider", entity: "Bangkok Hospital", kind: "rss", active: true },
+  { id: "s5", url: "https://pantip.com/tag/ประกันสุขภาพ", label: "Pantip — ประกันสุขภาพ", scope: "bvtpa", kind: "social", active: true },
+  { id: "s6", url: "https://www.bvtpa.co.th/press", label: "BVTPA Press Room", scope: "bvtpa", kind: "page", active: false },
+];
+
 function SocialListenerPage() {
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<Category | "all">("all");
   const [sentiment, setSentiment] = useState<Sentiment | "all">("all");
+  const [activeTarget, setActiveTarget] = useState<Target | "all">("all");
 
   const filtered = useMemo(
     () =>
       FEED.filter(
         (n) =>
+          (activeTarget === "all" || n.target === activeTarget) &&
           (activeCat === "all" || n.category === activeCat) &&
           (sentiment === "all" || n.sentiment === sentiment) &&
           (query === "" ||
             n.title.toLowerCase().includes(query.toLowerCase()) ||
             n.entities.some((e) => e.toLowerCase().includes(query.toLowerCase()))),
       ),
-    [activeCat, sentiment, query],
+    [activeCat, activeTarget, sentiment, query],
   );
 
   const counts = useMemo(() => {
@@ -307,6 +338,13 @@ function SocialListenerPage() {
     FEED.forEach((n) => c[n.category]++);
     return c;
   }, []);
+
+  const targetCounts = useMemo(() => {
+    const c = { bvtpa: 0, insurer: 0, provider: 0, industry: 0 } as Record<Target, number>;
+    FEED.forEach((n) => c[n.target]++);
+    return c;
+  }, []);
+
 
   const critical = FEED.filter((n) => n.severity === "critical");
 
