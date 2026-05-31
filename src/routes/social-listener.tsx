@@ -63,6 +63,7 @@ export const Route = createFileRoute("/social-listener")({
 type Sentiment = "positive" | "neutral" | "negative";
 type Category = "self" | "customer" | "regulation" | "fraud";
 type Severity = "low" | "med" | "high" | "critical";
+type Target = "bvtpa" | "insurer" | "provider" | "industry";
 
 type NewsItem = {
   id: string;
@@ -74,6 +75,7 @@ type NewsItem = {
   sentiment: Sentiment;
   category: Category;
   severity: Severity;
+  target: Target;
   entities: string[];
   reach: number;
   mentions: number;
