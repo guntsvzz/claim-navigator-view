@@ -7,6 +7,7 @@ import { Sidebar } from "./sidebar";
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewMode>("insurer");
   const [entityId, setEntityId] = useState("ALL");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
     <ViewCtx.Provider
@@ -21,10 +22,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       }}
     >
       <div className="flex min-h-screen bg-background text-foreground">
-        <Sidebar />
+        <Sidebar
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar />
-          <main className="flex-1 px-6 py-6">{children}</main>
+          <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+          <main className="flex-1 px-4 py-4 md:px-6 md:py-6">{children}</main>
         </div>
       </div>
     </ViewCtx.Provider>
