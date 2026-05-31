@@ -447,8 +447,61 @@ function SocialListenerPage() {
         </div>
       )}
 
+      {/* Target tabs — Part 1: who is being talked about */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Conversation target
+          </div>
+          <button
+            onClick={() => setActiveTarget("all")}
+            className={cn(
+              "text-[11px] font-medium",
+              activeTarget === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            ดูทั้งหมด
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {(Object.keys(TARGET_META) as Target[]).map((t) => {
+            const meta = TARGET_META[t];
+            const Icon = meta.icon;
+            const active = activeTarget === t;
+            const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
+            return (
+              <button
+                key={t}
+                onClick={() => setActiveTarget(active ? "all" : t)}
+                className={cn(
+                  "rounded-lg border bg-card p-4 text-left transition-all",
+                  active
+                    ? "border-primary ring-2 ring-primary/20"
+                    : "border-border hover:border-primary/40",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={cn("flex h-8 w-8 items-center justify-center rounded-md bg-muted", meta.tone)}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="text-2xl font-bold tabular-nums">{targetCounts[t]}</span>
+                </div>
+                <div className="mt-2 text-sm font-semibold">{meta.label}</div>
+                <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>{meta.sub}</span>
+                  {negCount > 0 && (
+                    <span className="font-semibold text-destructive">{negCount} neg</span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Category cards */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+
         {(Object.keys(CATEGORY_META) as Category[]).map((c) => {
           const meta = CATEGORY_META[c];
           const Icon = meta.icon;
