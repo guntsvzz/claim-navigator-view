@@ -86,6 +86,7 @@ type NewsItem = {
 const FEED: NewsItem[] = [
   {
     id: "n1",
+    target: "bvtpa",
     title: "ผู้เอาประกันโพสต์ร้องเรียน BVTPA อนุมัติเคลมล่าช้า กระทบโซเชียลกระแสลบ",
     summary:
       "โพสต์บน Pantip ยอด engagement สูงขึ้น 320% ใน 6 ชม. ระบุปัญหาการอนุมัติเคลม IPD กับ รพ.เอกชนใหญ่ มีคอมเมนต์ลบกว่า 180 ราย",
@@ -103,6 +104,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n2",
+    target: "industry",
     title: "คปภ. เตรียมประกาศหลักเกณฑ์ใหม่ ค่ารักษาเหมาจ่าย IPD มีผล Q3/2026",
     summary:
       "ร่างกฎหมายปรับเพดานเหมาจ่าย IPD ใหม่ คาดกระทบเงื่อนไขกรมธรรม์ของบริษัทประกัน 12 ราย และผู้ให้บริการ TPA โดยตรง",
@@ -119,6 +121,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n3",
+    target: "insurer",
     title: "AIA Thailand ประกาศกำไรไตรมาส Q1 โตกว่าคาด เพิ่มงบประกันสุขภาพกลุ่ม",
     summary:
       "ผลประกอบการดี ส่งสัญญาณเพิ่ม volume เคลมสุขภาพกลุ่ม opportunity สำหรับขยายสัญญาบริการ TPA",
@@ -135,6 +138,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n4",
+    target: "provider",
     title: "คลินิกในเครือ XYZ ถูกตรวจสอบ เบิกค่ารักษาเกินจริง — สตช.ขยายผล",
     summary:
       "พบเครือข่ายคลินิก 8 สาขาในกรุงเทพและปริมณฑล มีรายการเคลมผิดปกติ ระบบ fraud detection ของ TPA หลายรายจับสัญญาณก่อนหน้านี้",
@@ -152,6 +156,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n5",
+    target: "provider",
     title: "Bumrungrad Hospital เปิดศูนย์การแพทย์ใหม่ ขยายบริการ IPD เพิ่ม 120 เตียง",
     summary:
       "อาจกระทบ volume เคลมและต้นทุนเฉลี่ยต่อเคส ควรอัปเดต fee schedule และเงื่อนไข pre-authorization",
@@ -168,6 +173,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n6",
+    target: "bvtpa",
     title: "ผู้บริโภครีวิวบริการ BVTPA เชิงบวก ขั้นตอนเคลม OPD เร็วขึ้นมาก",
     summary:
       "Facebook กลุ่มประกันสุขภาพ มีผู้แชร์ประสบการณ์เชิงบวก 42 ราย ภายใน 24 ชม. — โอกาส amplify สำหรับฝ่าย Marketing",
@@ -184,6 +190,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n7",
+    target: "insurer",
     title: "FWD Insurance ถูกฟ้องคดีปฏิเสธเคลมโรคร้ายแรง — เริ่มสืบพยานสัปดาห์หน้า",
     summary:
       "อาจกระทบนโยบายอนุมัติเคลมประเภท CI ของลูกค้ารายนี้ ทีม Account ควรเตรียม briefing",
@@ -200,6 +207,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n8",
+    target: "industry",
     title: "พ.ร.บ. คุ้มครองข้อมูลสุขภาพ ฉบับใหม่ ผ่านวาระ 2 — TPA ต้องปรับ data flow",
     summary:
       "เพิ่มข้อกำหนด consent และ data retention ของข้อมูลเคลมสุขภาพ บังคับใช้ภายใน 180 วัน",
@@ -216,6 +224,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n9",
+    target: "industry",
     title: "ตำรวจจับเครือข่ายปลอมเอกสารเบิกประกัน มูลค่ากว่า 80 ล้านบาท",
     summary:
       "ใช้ใบเสร็จและใบรับรองแพทย์ปลอม ยื่นเคลมกับบริษัทประกันชีวิต 4 แห่ง — เป็นสัญญาณให้ทบทวน document verification flow",
@@ -232,6 +241,7 @@ const FEED: NewsItem[] = [
   },
   {
     id: "n10",
+    target: "insurer",
     title: "Muang Thai Life ประกาศ partner กับ Health-tech รายใหญ่ — ขยาย telemedicine",
     summary:
       "บริการ telemedicine จะเพิ่ม volume การเคลม OPD รูปแบบใหม่ ควรเตรียม workflow รองรับ",
