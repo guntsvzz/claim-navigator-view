@@ -20,11 +20,20 @@ import {
   Bookmark,
   Clock,
   ArrowUpRight,
+  Link2,
+  Plus,
+  Upload,
+  Trash2,
+  Globe,
+  FileText,
+  Rss,
+  CheckCircle2,
 } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Bar,
   BarChart,
