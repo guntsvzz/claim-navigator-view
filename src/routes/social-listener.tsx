@@ -330,25 +330,66 @@ const SEED_SOURCES: ConfiguredSource[] = [
   { id: "s6", url: "https://www.bvtpa.co.th/press", label: "BVTPA Press Room", scope: "bvtpa", kind: "page", active: false },
 ];
 
+type DateRange = "today" | "7d" | "30d" | "all";
+
+const SOURCE_TYPE_GROUPS: Record<string, NewsItem["sourceType"][]> = {
+  News: ["News"],
+  Forum: ["Pantip", "Blog"],
+  Social: ["Facebook", "X"],
+  "Gov & Official": ["Gov"],
+};
+type SourceGroup = keyof typeof SOURCE_TYPE_GROUPS;
+
+const DATE_LIMIT: Record<DateRange, number> = {
+  today: 24,
+  "7d": 24 * 7,
+  "30d": 24 * 30,
+  all: Infinity,
+};
+
 function SocialListenerPage() {
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<Category | "all">("all");
-  const [sentiment, setSentiment] = useState<Sentiment | "all">("all");
   const [activeTarget, setActiveTarget] = useState<Target | "all">("all");
+  const [sentiments, setSentiments] = useState<Set<Sentiment>>(new Set());
+  const [severities, setSeverities] = useState<Set<Severity>>(new Set());
+  const [sourceGroups, setSourceGroups] = useState<Set<SourceGroup>>(new Set());
+  const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
-  const filtered = useMemo(
-    () =>
-      FEED.filter(
-        (n) =>
-          (activeTarget === "all" || n.target === activeTarget) &&
-          (activeCat === "all" || n.category === activeCat) &&
-          (sentiment === "all" || n.sentiment === sentiment) &&
-          (query === "" ||
-            n.title.toLowerCase().includes(query.toLowerCase()) ||
-            n.entities.some((e) => e.toLowerCase().includes(query.toLowerCase()))),
-      ),
-    [activeCat, activeTarget, sentiment, query],
-  );
+  const activeFilterCount =
+    sentiments.size + severities.size + sourceGroups.size + (dateRange !== "30d" ? 1 : 0);
+
+  const filtered = useMemo(() => {
+    const limit = DATE_LIMIT[dateRange];
+    return FEED.filter((n) => {
+      if (activeTarget !== "all" && n.target !== activeTarget) return false;
+      if (activeCat !== "all" && n.category !== activeCat) return false;
+      if (sentiments.size > 0 && !sentiments.has(n.sentiment)) return false;
+      if (severities.size > 0 && !severities.has(n.severity)) return false;
+      if (sourceGroups.size > 0) {
+        const inGroup = Array.from(sourceGroups).some((g) =>
+          SOURCE_TYPE_GROUPS[g].includes(n.sourceType),
+        );
+        if (!inGroup) return false;
+      }
+      if (typeof n.hoursAgo === "number" && n.hoursAgo > limit) return false;
+      if (
+        query !== "" &&
+        !n.title.toLowerCase().includes(query.toLowerCase()) &&
+        !n.entities.some((e) => e.toLowerCase().includes(query.toLowerCase()))
+      )
+        return false;
+      return true;
+    });
+  }, [activeCat, activeTarget, sentiments, severities, sourceGroups, dateRange, query]);
+
+  const resetFilters = () => {
+    setSentiments(new Set());
+    setSeverities(new Set());
+    setSourceGroups(new Set());
+    setDateRange("30d");
+  };
 
   const counts = useMemo(() => {
     const c = { self: 0, customer: 0, regulation: 0, fraud: 0 } as Record<Category, number>;
