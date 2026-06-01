@@ -87,7 +87,7 @@ type NewsItem = {
   source: string;
   sourceType: "News" | "Facebook" | "X" | "Pantip" | "Gov" | "Blog";
   time: string;
-  hoursAgo: number;
+  hoursAgo?: number;
   sentiment: Sentiment;
   category: Category;
   severity: Severity;
