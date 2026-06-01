@@ -745,9 +745,201 @@ function SocialListenerPage() {
         </div>
       </div>
 
-      {/* Part 2: Data source configuration */}
-      <DataSourcesSection />
+      {/* Part 2: Data source configuration (slide-over) */}
+      <Sheet open={sourcesOpen} onOpenChange={setSourcesOpen}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" /> Manage data sources
+            </SheetTitle>
+            <SheetDescription>
+              กำหนด URL ที่อยากให้ระบบติดตาม หรืออัปโหลดข่าวที่เจอเองพร้อมระบุ sentiment / severity
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <DataSourcesSection />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+function FilterBar({
+  query,
+  setQuery,
+  sentiments,
+  setSentiments,
+  severities,
+  setSeverities,
+  sourceGroups,
+  setSourceGroups,
+  dateRange,
+  setDateRange,
+  activeCount,
+  onReset,
+}: {
+  query: string;
+  setQuery: (s: string) => void;
+  sentiments: Set<Sentiment>;
+  setSentiments: (s: Set<Sentiment>) => void;
+  severities: Set<Severity>;
+  setSeverities: (s: Set<Severity>) => void;
+  sourceGroups: Set<SourceGroup>;
+  setSourceGroups: (s: Set<SourceGroup>) => void;
+  dateRange: DateRange;
+  setDateRange: (d: DateRange) => void;
+  activeCount: number;
+  onReset: () => void;
+}) {
+  const toggle = <T,>(set: Set<T>, val: T, setter: (s: Set<T>) => void) => {
+    const next = new Set(set);
+    if (next.has(val)) next.delete(val);
+    else next.add(val);
+    setter(next);
+  };
+
+  const dateOpts: { v: DateRange; label: string }[] = [
+    { v: "today", label: "Today" },
+    { v: "7d", label: "7d" },
+    { v: "30d", label: "30d" },
+    { v: "all", label: "All" },
+  ];
+
+  const sentOpts: { v: Sentiment; label: string; tone: string }[] = [
+    { v: "positive", label: "Positive", tone: "text-success" },
+    { v: "neutral", label: "Neutral", tone: "text-muted-foreground" },
+    { v: "negative", label: "Negative", tone: "text-destructive" },
+  ];
+
+  const sevOpts: { v: Severity; label: string }[] = [
+    { v: "low", label: "Low" },
+    { v: "med", label: "Medium" },
+    { v: "high", label: "High" },
+    { v: "critical", label: "Critical" },
+  ];
+
+  const srcOpts: SourceGroup[] = ["News", "Forum", "Social", "Gov & Official"];
+
+  return (
+    <div className="border-b border-border bg-muted/20 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ค้นหาข่าว หรือ entity..."
+            className="h-8 w-full pl-7 text-xs"
+          />
+        </div>
+
+        <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
+          {dateOpts.map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setDateRange(o.v)}
+              className={cn(
+                "px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                dateRange === o.v
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <FilterPopover
+          label="Sentiment"
+          count={sentiments.size}
+          options={sentOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            tone: o.tone,
+            active: sentiments.has(o.v),
+            onToggle: () => toggle(sentiments, o.v, setSentiments),
+          }))}
+        />
+        <FilterPopover
+          label="Severity"
+          count={severities.size}
+          options={sevOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            active: severities.has(o.v),
+            onToggle: () => toggle(severities, o.v, setSeverities),
+          }))}
+        />
+        <FilterPopover
+          label="Source"
+          count={sourceGroups.size}
+          options={srcOpts.map((o) => ({
+            key: o,
+            label: o,
+            active: sourceGroups.has(o),
+            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
+          }))}
+        />
+
+        {activeCount > 0 && (
+          <button
+            onClick={onReset}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" /> Reset ({activeCount})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FilterPopover({
+  label,
+  count,
+  options,
+}: {
+  label: string;
+  count: number;
+  options: { key: string; label: string; tone?: string; active: boolean; onToggle: () => void }[];
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:bg-accent",
+            count > 0 && "border-primary text-primary",
+          )}
+        >
+          <Filter className="h-3 w-3" />
+          {label}
+          {count > 0 && (
+            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+              {count}
+            </span>
+          )}
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 p-1">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            onClick={o.onToggle}
+            className={cn(
+              "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
+              o.active && "bg-accent",
+            )}
+          >
+            <span className={cn("font-medium", o.tone)}>{o.label}</span>
+            {o.active && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }
 
