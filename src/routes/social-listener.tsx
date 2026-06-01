@@ -28,7 +28,22 @@ import {
   FileText,
   Rss,
   CheckCircle2,
+  Settings2,
+  X,
+  ChevronDown,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
@@ -72,6 +87,7 @@ type NewsItem = {
   source: string;
   sourceType: "News" | "Facebook" | "X" | "Pantip" | "Gov" | "Blog";
   time: string;
+  hoursAgo?: number;
   sentiment: Sentiment;
   category: Category;
   severity: Severity;
@@ -93,6 +109,7 @@ const FEED: NewsItem[] = [
     source: "Pantip / Sinsae",
     sourceType: "Pantip",
     time: "32 นาทีที่แล้ว",
+    hoursAgo: 0.5,
     sentiment: "negative",
     category: "self",
     severity: "critical",
@@ -313,25 +330,66 @@ const SEED_SOURCES: ConfiguredSource[] = [
   { id: "s6", url: "https://www.bvtpa.co.th/press", label: "BVTPA Press Room", scope: "bvtpa", kind: "page", active: false },
 ];
 
+type DateRange = "today" | "7d" | "30d" | "all";
+
+const SOURCE_TYPE_GROUPS: Record<string, NewsItem["sourceType"][]> = {
+  News: ["News"],
+  Forum: ["Pantip", "Blog"],
+  Social: ["Facebook", "X"],
+  "Gov & Official": ["Gov"],
+};
+type SourceGroup = keyof typeof SOURCE_TYPE_GROUPS;
+
+const DATE_LIMIT: Record<DateRange, number> = {
+  today: 24,
+  "7d": 24 * 7,
+  "30d": 24 * 30,
+  all: Infinity,
+};
+
 function SocialListenerPage() {
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<Category | "all">("all");
-  const [sentiment, setSentiment] = useState<Sentiment | "all">("all");
   const [activeTarget, setActiveTarget] = useState<Target | "all">("all");
+  const [sentiments, setSentiments] = useState<Set<Sentiment>>(new Set());
+  const [severities, setSeverities] = useState<Set<Severity>>(new Set());
+  const [sourceGroups, setSourceGroups] = useState<Set<SourceGroup>>(new Set());
+  const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
-  const filtered = useMemo(
-    () =>
-      FEED.filter(
-        (n) =>
-          (activeTarget === "all" || n.target === activeTarget) &&
-          (activeCat === "all" || n.category === activeCat) &&
-          (sentiment === "all" || n.sentiment === sentiment) &&
-          (query === "" ||
-            n.title.toLowerCase().includes(query.toLowerCase()) ||
-            n.entities.some((e) => e.toLowerCase().includes(query.toLowerCase()))),
-      ),
-    [activeCat, activeTarget, sentiment, query],
-  );
+  const activeFilterCount =
+    sentiments.size + severities.size + sourceGroups.size + (dateRange !== "30d" ? 1 : 0);
+
+  const filtered = useMemo(() => {
+    const limit = DATE_LIMIT[dateRange];
+    return FEED.filter((n) => {
+      if (activeTarget !== "all" && n.target !== activeTarget) return false;
+      if (activeCat !== "all" && n.category !== activeCat) return false;
+      if (sentiments.size > 0 && !sentiments.has(n.sentiment)) return false;
+      if (severities.size > 0 && !severities.has(n.severity)) return false;
+      if (sourceGroups.size > 0) {
+        const inGroup = Array.from(sourceGroups).some((g) =>
+          SOURCE_TYPE_GROUPS[g].includes(n.sourceType),
+        );
+        if (!inGroup) return false;
+      }
+      if (typeof n.hoursAgo === "number" && n.hoursAgo > limit) return false;
+      if (
+        query !== "" &&
+        !n.title.toLowerCase().includes(query.toLowerCase()) &&
+        !n.entities.some((e) => e.toLowerCase().includes(query.toLowerCase()))
+      )
+        return false;
+      return true;
+    });
+  }, [activeCat, activeTarget, sentiments, severities, sourceGroups, dateRange, query]);
+
+  const resetFilters = () => {
+    setSentiments(new Set());
+    setSeverities(new Set());
+    setSourceGroups(new Set());
+    setDateRange("30d");
+  };
 
   const counts = useMemo(() => {
     const c = { self: 0, customer: 0, regulation: 0, fraud: 0 } as Record<Category, number>;
@@ -361,12 +419,20 @@ function SocialListenerPage() {
             Real-time monitoring ของข่าวสาร, social signal และความเสี่ยงที่กระทบ BVTPA, ลูกค้า, และอุตสาหกรรม
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-          </span>
-          Live · sync ทุก 5 นาที · 12 sources
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+            </span>
+            Live · sync ทุก 5 นาที · 12 sources
+          </div>
+          <button
+            onClick={() => setSourcesOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium text-foreground hover:bg-accent"
+          >
+            <Settings2 className="h-3.5 w-3.5" /> Manage Sources
+          </button>
         </div>
       </div>
 
@@ -447,56 +513,52 @@ function SocialListenerPage() {
         </div>
       )}
 
-      {/* Target tabs — Part 1: who is being talked about */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Conversation target
-          </div>
-          <button
-            onClick={() => setActiveTarget("all")}
-            className={cn(
-              "text-[11px] font-medium",
-              activeTarget === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            ดูทั้งหมด
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {(Object.keys(TARGET_META) as Target[]).map((t) => {
-            const meta = TARGET_META[t];
-            const Icon = meta.icon;
-            const active = activeTarget === t;
-            const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
-            return (
-              <button
-                key={t}
-                onClick={() => setActiveTarget(active ? "all" : t)}
-                className={cn(
-                  "rounded-lg border bg-card p-4 text-left transition-all",
-                  active
-                    ? "border-primary ring-2 ring-primary/20"
-                    : "border-border hover:border-primary/40",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className={cn("flex h-8 w-8 items-center justify-center rounded-md bg-muted", meta.tone)}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <span className="text-2xl font-bold tabular-nums">{targetCounts[t]}</span>
-                </div>
-                <div className="mt-2 text-sm font-semibold">{meta.label}</div>
-                <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{meta.sub}</span>
-                  {negCount > 0 && (
-                    <span className="font-semibold text-destructive">{negCount} neg</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* Compact target summary bar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Target
+        </span>
+        <button
+          onClick={() => setActiveTarget("all")}
+          className={cn(
+            "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+            activeTarget === "all"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent",
+          )}
+        >
+          All · {FEED.length}
+        </button>
+        {(Object.keys(TARGET_META) as Target[]).map((t) => {
+          const meta = TARGET_META[t];
+          const Icon = meta.icon;
+          const active = activeTarget === t;
+          const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
+          return (
+            <button
+              key={t}
+              onClick={() => setActiveTarget(active ? "all" : t)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground/80 hover:bg-accent",
+              )}
+            >
+              <Icon className={cn("h-3 w-3", !active && meta.tone)} />
+              <span>{meta.label}</span>
+              <span className="tabular-nums opacity-70">· {targetCounts[t]}</span>
+              {negCount > 0 && (
+                <span className={cn(
+                  "rounded-full px-1.5 py-0 text-[10px] font-bold",
+                  active ? "bg-primary-foreground/20" : "bg-destructive/15 text-destructive",
+                )}>
+                  {negCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Category cards */}
@@ -596,22 +658,22 @@ function SocialListenerPage() {
           <Panel
             title="Signals feed"
             subtitle={`${filtered.length} จาก ${FEED.length} รายการ`}
-            actions={
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="ค้นหา..."
-                    className="h-8 w-44 pl-7 text-xs"
-                  />
-                </div>
-                <SentimentPicker value={sentiment} onChange={setSentiment} />
-              </div>
-            }
             bodyClassName="p-0"
           >
+            <FilterBar
+              query={query}
+              setQuery={setQuery}
+              sentiments={sentiments}
+              setSentiments={setSentiments}
+              severities={severities}
+              setSeverities={setSeverities}
+              sourceGroups={sourceGroups}
+              setSourceGroups={setSourceGroups}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              activeCount={activeFilterCount}
+              onReset={resetFilters}
+            />
             <ul className="divide-y divide-border">
               {filtered.map((n) => (
                 <FeedItem key={n.id} item={n} />
@@ -683,9 +745,201 @@ function SocialListenerPage() {
         </div>
       </div>
 
-      {/* Part 2: Data source configuration */}
-      <DataSourcesSection />
+      {/* Part 2: Data source configuration (slide-over) */}
+      <Sheet open={sourcesOpen} onOpenChange={setSourcesOpen}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" /> Manage data sources
+            </SheetTitle>
+            <SheetDescription>
+              กำหนด URL ที่อยากให้ระบบติดตาม หรืออัปโหลดข่าวที่เจอเองพร้อมระบุ sentiment / severity
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <DataSourcesSection />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+function FilterBar({
+  query,
+  setQuery,
+  sentiments,
+  setSentiments,
+  severities,
+  setSeverities,
+  sourceGroups,
+  setSourceGroups,
+  dateRange,
+  setDateRange,
+  activeCount,
+  onReset,
+}: {
+  query: string;
+  setQuery: (s: string) => void;
+  sentiments: Set<Sentiment>;
+  setSentiments: (s: Set<Sentiment>) => void;
+  severities: Set<Severity>;
+  setSeverities: (s: Set<Severity>) => void;
+  sourceGroups: Set<SourceGroup>;
+  setSourceGroups: (s: Set<SourceGroup>) => void;
+  dateRange: DateRange;
+  setDateRange: (d: DateRange) => void;
+  activeCount: number;
+  onReset: () => void;
+}) {
+  const toggle = <T,>(set: Set<T>, val: T, setter: (s: Set<T>) => void) => {
+    const next = new Set(set);
+    if (next.has(val)) next.delete(val);
+    else next.add(val);
+    setter(next);
+  };
+
+  const dateOpts: { v: DateRange; label: string }[] = [
+    { v: "today", label: "Today" },
+    { v: "7d", label: "7d" },
+    { v: "30d", label: "30d" },
+    { v: "all", label: "All" },
+  ];
+
+  const sentOpts: { v: Sentiment; label: string; tone: string }[] = [
+    { v: "positive", label: "Positive", tone: "text-success" },
+    { v: "neutral", label: "Neutral", tone: "text-muted-foreground" },
+    { v: "negative", label: "Negative", tone: "text-destructive" },
+  ];
+
+  const sevOpts: { v: Severity; label: string }[] = [
+    { v: "low", label: "Low" },
+    { v: "med", label: "Medium" },
+    { v: "high", label: "High" },
+    { v: "critical", label: "Critical" },
+  ];
+
+  const srcOpts: SourceGroup[] = ["News", "Forum", "Social", "Gov & Official"];
+
+  return (
+    <div className="border-b border-border bg-muted/20 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="ค้นหาข่าว หรือ entity..."
+            className="h-8 w-full pl-7 text-xs"
+          />
+        </div>
+
+        <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
+          {dateOpts.map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setDateRange(o.v)}
+              className={cn(
+                "px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                dateRange === o.v
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
+        <FilterPopover
+          label="Sentiment"
+          count={sentiments.size}
+          options={sentOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            tone: o.tone,
+            active: sentiments.has(o.v),
+            onToggle: () => toggle(sentiments, o.v, setSentiments),
+          }))}
+        />
+        <FilterPopover
+          label="Severity"
+          count={severities.size}
+          options={sevOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            active: severities.has(o.v),
+            onToggle: () => toggle(severities, o.v, setSeverities),
+          }))}
+        />
+        <FilterPopover
+          label="Source"
+          count={sourceGroups.size}
+          options={srcOpts.map((o) => ({
+            key: o,
+            label: o,
+            active: sourceGroups.has(o),
+            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
+          }))}
+        />
+
+        {activeCount > 0 && (
+          <button
+            onClick={onReset}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" /> Reset ({activeCount})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FilterPopover({
+  label,
+  count,
+  options,
+}: {
+  label: string;
+  count: number;
+  options: { key: string; label: string; tone?: string; active: boolean; onToggle: () => void }[];
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:bg-accent",
+            count > 0 && "border-primary text-primary",
+          )}
+        >
+          <Filter className="h-3 w-3" />
+          {label}
+          {count > 0 && (
+            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+              {count}
+            </span>
+          )}
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 p-1">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            onClick={o.onToggle}
+            className={cn(
+              "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
+              o.active && "bg-accent",
+            )}
+          >
+            <span className={cn("font-medium", o.tone)}>{o.label}</span>
+            {o.active && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }
 
