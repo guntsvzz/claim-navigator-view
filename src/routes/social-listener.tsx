@@ -658,22 +658,22 @@ function SocialListenerPage() {
           <Panel
             title="Signals feed"
             subtitle={`${filtered.length} จาก ${FEED.length} รายการ`}
-            actions={
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="ค้นหา..."
-                    className="h-8 w-44 pl-7 text-xs"
-                  />
-                </div>
-                <SentimentPicker value={sentiment} onChange={setSentiment} />
-              </div>
-            }
             bodyClassName="p-0"
           >
+            <FilterBar
+              query={query}
+              setQuery={setQuery}
+              sentiments={sentiments}
+              setSentiments={setSentiments}
+              severities={severities}
+              setSeverities={setSeverities}
+              sourceGroups={sourceGroups}
+              setSourceGroups={setSourceGroups}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+              activeCount={activeFilterCount}
+              onReset={resetFilters}
+            />
             <ul className="divide-y divide-border">
               {filtered.map((n) => (
                 <FeedItem key={n.id} item={n} />
