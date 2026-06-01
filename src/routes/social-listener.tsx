@@ -87,6 +87,7 @@ type NewsItem = {
   source: string;
   sourceType: "News" | "Facebook" | "X" | "Pantip" | "Gov" | "Blog";
   time: string;
+  hoursAgo: number;
   sentiment: Sentiment;
   category: Category;
   severity: Severity;
@@ -108,6 +109,7 @@ const FEED: NewsItem[] = [
     source: "Pantip / Sinsae",
     sourceType: "Pantip",
     time: "32 นาทีที่แล้ว",
+    hoursAgo: 0.5,
     sentiment: "negative",
     category: "self",
     severity: "critical",
