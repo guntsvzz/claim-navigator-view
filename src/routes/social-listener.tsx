@@ -513,56 +513,52 @@ function SocialListenerPage() {
         </div>
       )}
 
-      {/* Target tabs — Part 1: who is being talked about */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Conversation target
-          </div>
-          <button
-            onClick={() => setActiveTarget("all")}
-            className={cn(
-              "text-[11px] font-medium",
-              activeTarget === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            ดูทั้งหมด
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {(Object.keys(TARGET_META) as Target[]).map((t) => {
-            const meta = TARGET_META[t];
-            const Icon = meta.icon;
-            const active = activeTarget === t;
-            const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
-            return (
-              <button
-                key={t}
-                onClick={() => setActiveTarget(active ? "all" : t)}
-                className={cn(
-                  "rounded-lg border bg-card p-4 text-left transition-all",
-                  active
-                    ? "border-primary ring-2 ring-primary/20"
-                    : "border-border hover:border-primary/40",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className={cn("flex h-8 w-8 items-center justify-center rounded-md bg-muted", meta.tone)}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <span className="text-2xl font-bold tabular-nums">{targetCounts[t]}</span>
-                </div>
-                <div className="mt-2 text-sm font-semibold">{meta.label}</div>
-                <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{meta.sub}</span>
-                  {negCount > 0 && (
-                    <span className="font-semibold text-destructive">{negCount} neg</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* Compact target summary bar */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Target
+        </span>
+        <button
+          onClick={() => setActiveTarget("all")}
+          className={cn(
+            "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+            activeTarget === "all"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent",
+          )}
+        >
+          All · {FEED.length}
+        </button>
+        {(Object.keys(TARGET_META) as Target[]).map((t) => {
+          const meta = TARGET_META[t];
+          const Icon = meta.icon;
+          const active = activeTarget === t;
+          const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
+          return (
+            <button
+              key={t}
+              onClick={() => setActiveTarget(active ? "all" : t)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-foreground/80 hover:bg-accent",
+              )}
+            >
+              <Icon className={cn("h-3 w-3", !active && meta.tone)} />
+              <span>{meta.label}</span>
+              <span className="tabular-nums opacity-70">· {targetCounts[t]}</span>
+              {negCount > 0 && (
+                <span className={cn(
+                  "rounded-full px-1.5 py-0 text-[10px] font-bold",
+                  active ? "bg-primary-foreground/20" : "bg-destructive/15 text-destructive",
+                )}>
+                  {negCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Category cards */}
