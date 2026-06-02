@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { DashboardLayout } from "@/components/dashboard/layout";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
