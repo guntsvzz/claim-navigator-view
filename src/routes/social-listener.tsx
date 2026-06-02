@@ -798,7 +798,7 @@ function SocialListenerPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <DataSourcesSection />
+            <DataSourcesSection sources={sources} setSources={setSources} />
           </div>
         </SheetContent>
       </Sheet>
