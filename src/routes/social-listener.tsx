@@ -31,7 +31,6 @@ import {
   CheckCircle2,
   Settings2,
   X,
-  ChevronDown,
   ListPlus,
   Siren,
   CheckCheck,
@@ -43,11 +42,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
