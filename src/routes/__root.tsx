@@ -117,6 +117,7 @@ function RootComponent() {
       <DashboardLayout>
         <Outlet />
       </DashboardLayout>
+      <Toaster position="top-right" />
     </QueryClientProvider>
   );
 }
