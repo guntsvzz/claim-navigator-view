@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   ShieldAlert,
@@ -30,7 +31,9 @@ import {
   CheckCircle2,
   Settings2,
   X,
-  ChevronDown,
+  ListPlus,
+  Siren,
+  CheckCheck,
 } from "lucide-react";
 import {
   Sheet,
@@ -39,11 +42,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
@@ -356,6 +354,25 @@ function SocialListenerPage() {
   const [sourceGroups, setSourceGroups] = useState<Set<SourceGroup>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+  const feedRef = useRef<HTMLDivElement | null>(null);
+
+  const activeSourceCount = sources.filter((s) => s.active).length;
+
+  const scrollToFeed = () => {
+    requestAnimationFrame(() => {
+      feedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const onTargetClick = (t: Target | "all") => {
+    setActiveTarget(t);
+    scrollToFeed();
+  };
+  const onCategoryClick = (c: Category | "all") => {
+    setActiveCat(c);
+    scrollToFeed();
+  };
 
   const activeFilterCount =
     sentiments.size + severities.size + sourceGroups.size + (dateRange !== "30d" ? 1 : 0);
@@ -425,7 +442,7 @@ function SocialListenerPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
             </span>
-            Live · sync ทุก 5 นาที · 12 sources
+            Live · sync ทุก 5 นาที · {activeSourceCount} sources
           </div>
           <button
             onClick={() => setSourcesOpen(true)}
@@ -519,7 +536,7 @@ function SocialListenerPage() {
           Target
         </span>
         <button
-          onClick={() => setActiveTarget("all")}
+          onClick={() => onTargetClick("all")}
           className={cn(
             "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
             activeTarget === "all"
@@ -537,7 +554,7 @@ function SocialListenerPage() {
           return (
             <button
               key={t}
-              onClick={() => setActiveTarget(active ? "all" : t)}
+              onClick={() => onTargetClick(active ? "all" : t)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
                 active
@@ -571,7 +588,7 @@ function SocialListenerPage() {
           return (
             <button
               key={c}
-              onClick={() => setActiveCat(active ? "all" : c)}
+              onClick={() => onCategoryClick(active ? "all" : c)}
               className={cn(
                 "rounded-lg border bg-card p-4 text-left transition-all",
                 active
@@ -653,11 +670,21 @@ function SocialListenerPage() {
       </div>
 
       {/* Feed + sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div ref={feedRef} className="grid grid-cols-1 gap-4 lg:grid-cols-3 scroll-mt-4">
         <div className="lg:col-span-2">
           <Panel
-            title="Signals feed"
-            subtitle={`${filtered.length} จาก ${FEED.length} รายการ`}
+            title={
+              activeTarget !== "all"
+                ? `Showing ${filtered.length} signals for ${TARGET_META[activeTarget].label}`
+                : activeCat !== "all"
+                  ? `Showing ${filtered.length} signals · ${CATEGORY_META[activeCat].label}`
+                  : "Signals feed"
+            }
+            subtitle={
+              activeTarget !== "all" || activeCat !== "all" || activeFilterCount > 0 || query
+                ? `${filtered.length} จาก ${FEED.length} รายการ · filters active`
+                : `${filtered.length} จาก ${FEED.length} รายการ`
+            }
             bodyClassName="p-0"
           >
             <FilterBar
@@ -679,8 +706,16 @@ function SocialListenerPage() {
                 <FeedItem key={n.id} item={n} />
               ))}
               {filtered.length === 0 && (
-                <li className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  ไม่มีรายการตรงกับ filter ปัจจุบัน
+                <li className="px-6 py-16">
+                  <EmptyState
+                    hasFilters={activeFilterCount > 0 || activeTarget !== "all" || activeCat !== "all" || !!query}
+                    onReset={() => {
+                      resetFilters();
+                      setActiveTarget("all");
+                      setActiveCat("all");
+                      setQuery("");
+                    }}
+                  />
                 </li>
               )}
             </ul>
@@ -757,7 +792,7 @@ function SocialListenerPage() {
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <DataSourcesSection />
+            <DataSourcesSection sources={sources} setSources={setSources} />
           </div>
         </SheetContent>
       </Sheet>
@@ -822,7 +857,7 @@ function FilterBar({
   const srcOpts: SourceGroup[] = ["News", "Forum", "Social", "Gov & Official"];
 
   return (
-    <div className="border-b border-border bg-muted/20 px-4 py-3">
+    <div className="border-b border-border bg-muted/20 px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -851,38 +886,6 @@ function FilterBar({
           ))}
         </div>
 
-        <FilterPopover
-          label="Sentiment"
-          count={sentiments.size}
-          options={sentOpts.map((o) => ({
-            key: o.v,
-            label: o.label,
-            tone: o.tone,
-            active: sentiments.has(o.v),
-            onToggle: () => toggle(sentiments, o.v, setSentiments),
-          }))}
-        />
-        <FilterPopover
-          label="Severity"
-          count={severities.size}
-          options={sevOpts.map((o) => ({
-            key: o.v,
-            label: o.label,
-            active: severities.has(o.v),
-            onToggle: () => toggle(severities, o.v, setSeverities),
-          }))}
-        />
-        <FilterPopover
-          label="Source"
-          count={sourceGroups.size}
-          options={srcOpts.map((o) => ({
-            key: o,
-            label: o,
-            active: sourceGroups.has(o),
-            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
-          }))}
-        />
-
         {activeCount > 0 && (
           <button
             onClick={onReset}
@@ -892,59 +895,122 @@ function FilterBar({
           </button>
         )}
       </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <PillRow
+          label="Sentiment"
+          options={sentOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            tone: o.tone,
+            active: sentiments.has(o.v),
+            onToggle: () => toggle(sentiments, o.v, setSentiments),
+          }))}
+        />
+        <PillRow
+          label="Severity"
+          options={sevOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            active: severities.has(o.v),
+            onToggle: () => toggle(severities, o.v, setSeverities),
+          }))}
+        />
+        <PillRow
+          label="Source"
+          options={srcOpts.map((o) => ({
+            key: o,
+            label: o,
+            active: sourceGroups.has(o),
+            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
+          }))}
+        />
+      </div>
     </div>
   );
 }
 
-function FilterPopover({
+function PillRow({
   label,
-  count,
   options,
 }: {
   label: string;
-  count: number;
   options: { key: string; label: string; tone?: string; active: boolean; onToggle: () => void }[];
 }) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+        {label}
+      </span>
+      {options.map((o) => (
         <button
+          key={o.key}
+          onClick={o.onToggle}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:bg-accent",
-            count > 0 && "border-primary text-primary",
+            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+            o.active
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-foreground/70 hover:bg-accent",
           )}
         >
-          <Filter className="h-3 w-3" />
-          {label}
-          {count > 0 && (
-            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-              {count}
-            </span>
-          )}
-          <ChevronDown className="h-3 w-3 opacity-60" />
+          {o.active && <CheckCircle2 className="h-2.5 w-2.5" />}
+          <span className={cn(!o.active && o.tone)}>{o.label}</span>
         </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-48 p-1">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            onClick={o.onToggle}
-            className={cn(
-              "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
-              o.active && "bg-accent",
-            )}
-          >
-            <span className={cn("font-medium", o.tone)}>{o.label}</span>
-            {o.active && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
-          </button>
-        ))}
-      </PopoverContent>
-    </Popover>
+      ))}
+    </div>
   );
 }
 
-function DataSourcesSection() {
-  const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+function EmptyState({
+  hasFilters,
+  onReset,
+}: {
+  hasFilters: boolean;
+  onReset: () => void;
+}) {
+  if (hasFilters) {
+    return (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Search className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-sm font-semibold">ไม่มีรายการตรงกับ filter</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            ลองลด filter หรือขยายช่วงเวลาเพื่อดูสัญญาณเพิ่มเติม
+          </p>
+        </div>
+        <button
+          onClick={onReset}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-semibold hover:bg-accent"
+        >
+          <X className="h-3.5 w-3.5" /> Clear all filters
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success">
+        <CheckCheck className="h-6 w-6" />
+      </div>
+      <div>
+        <div className="text-sm font-semibold">All clear — ไม่มีสัญญาณที่ต้องดำเนินการ</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          ระบบยัง monitoring อยู่ตลอด · sync ครั้งถัดไปใน 5 นาที
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function DataSourcesSection({
+  sources,
+  setSources,
+}: {
+  sources: ConfiguredSource[];
+  setSources: React.Dispatch<React.SetStateAction<ConfiguredSource[]>>;
+}) {
   const [newUrl, setNewUrl] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newScope, setNewScope] = useState<Target>("industry");
@@ -979,11 +1045,28 @@ function DataSourcesSection() {
     setNewUrl("");
     setNewLabel("");
     setNewEntity("");
+    toast.success("Source added", {
+      description: "Will sync in next cycle.",
+    });
   };
 
   const toggleSource = (id: string) =>
-    setSources((s) => s.map((x) => (x.id === id ? { ...x, active: !x.active } : x)));
-  const removeSource = (id: string) => setSources((s) => s.filter((x) => x.id !== id));
+    setSources((s) =>
+      s.map((x) => {
+        if (x.id !== id) return x;
+        const next = { ...x, active: !x.active };
+        toast(next.active ? "Source resumed" : "Source paused", {
+          description: x.label,
+        });
+        return next;
+      }),
+    );
+  const removeSource = (id: string) =>
+    setSources((s) => {
+      const item = s.find((x) => x.id === id);
+      if (item) toast("Source removed", { description: item.label });
+      return s.filter((x) => x.id !== id);
+    });
 
   const submitManual = () => {
     if (!mTitle.trim()) return;
@@ -1001,6 +1084,9 @@ function DataSourcesSection() {
     setMTitle("");
     setMUrl("");
     setMSummary("");
+    toast.success("Signal added to feed", {
+      description: `${TARGET_META[mScope].label} · ${mSentiment} · ${mSeverity}`,
+    });
   };
 
   return (
@@ -1402,14 +1488,46 @@ function FeedItem({ item }: { item: NewsItem }) {
             {item.mentions} mentions
           </span>
         </div>
-      </div>
-      <div className="flex flex-col items-end gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-        <button className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground">
-          <Bookmark className="h-3.5 w-3.5" />
-        </button>
-        <button className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground">
-          <ExternalLink className="h-3.5 w-3.5" />
-        </button>
+
+        {/* Inline CTAs — close the loop from signal to action */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {(item.severity === "critical" || item.severity === "high") && (
+            <button
+              onClick={() =>
+                toast.success("War Room opened", {
+                  description: item.title,
+                })
+              }
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-destructive px-2.5 text-[11px] font-semibold text-destructive-foreground hover:bg-destructive/90"
+            >
+              <Siren className="h-3 w-3" /> Open War Room
+            </button>
+          )}
+          <button
+            onClick={() =>
+              toast.success("Task created", {
+                description: `Assigned: review “${item.title.slice(0, 48)}…”`,
+              })
+            }
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-semibold hover:bg-accent"
+          >
+            <ListPlus className="h-3 w-3" /> Create Task
+          </button>
+          <button
+            onClick={() => toast("Saved to watchlist", { description: item.title })}
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
+            <Bookmark className="h-3 w-3" /> Watch
+          </button>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="h-3 w-3" /> Open source
+          </a>
+        </div>
       </div>
     </li>
   );
