@@ -542,7 +542,7 @@ function SocialListenerPage() {
           Target
         </span>
         <button
-          onClick={() => setActiveTarget("all")}
+          onClick={() => onTargetClick("all")}
           className={cn(
             "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
             activeTarget === "all"
