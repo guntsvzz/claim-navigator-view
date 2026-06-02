@@ -1025,11 +1025,28 @@ function DataSourcesSection({
     setNewUrl("");
     setNewLabel("");
     setNewEntity("");
+    toast.success("Source added", {
+      description: "Will sync in next cycle.",
+    });
   };
 
   const toggleSource = (id: string) =>
-    setSources((s) => s.map((x) => (x.id === id ? { ...x, active: !x.active } : x)));
-  const removeSource = (id: string) => setSources((s) => s.filter((x) => x.id !== id));
+    setSources((s) =>
+      s.map((x) => {
+        if (x.id !== id) return x;
+        const next = { ...x, active: !x.active };
+        toast(next.active ? "Source resumed" : "Source paused", {
+          description: x.label,
+        });
+        return next;
+      }),
+    );
+  const removeSource = (id: string) =>
+    setSources((s) => {
+      const item = s.find((x) => x.id === id);
+      if (item) toast("Source removed", { description: item.label });
+      return s.filter((x) => x.id !== id);
+    });
 
   const submitManual = () => {
     if (!mTitle.trim()) return;
@@ -1047,6 +1064,9 @@ function DataSourcesSection({
     setMTitle("");
     setMUrl("");
     setMSummary("");
+    toast.success("Signal added to feed", {
+      description: `${TARGET_META[mScope].label} · ${mSentiment} · ${mSeverity}`,
+    });
   };
 
   return (
