@@ -448,7 +448,7 @@ function SocialListenerPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
             </span>
-            Live · sync ทุก 5 นาที · 12 sources
+            Live · sync ทุก 5 นาที · {activeSourceCount} sources
           </div>
           <button
             onClick={() => setSourcesOpen(true)}
