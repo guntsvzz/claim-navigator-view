@@ -984,8 +984,13 @@ function FilterPopover({
   );
 }
 
-function DataSourcesSection() {
-  const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+function DataSourcesSection({
+  sources,
+  setSources,
+}: {
+  sources: ConfiguredSource[];
+  setSources: React.Dispatch<React.SetStateAction<ConfiguredSource[]>>;
+}) {
   const [newUrl, setNewUrl] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newScope, setNewScope] = useState<Target>("industry");
