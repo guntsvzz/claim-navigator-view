@@ -863,7 +863,7 @@ function FilterBar({
   const srcOpts: SourceGroup[] = ["News", "Forum", "Social", "Gov & Official"];
 
   return (
-    <div className="border-b border-border bg-muted/20 px-4 py-3">
+    <div className="border-b border-border bg-muted/20 px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -892,38 +892,6 @@ function FilterBar({
           ))}
         </div>
 
-        <FilterPopover
-          label="Sentiment"
-          count={sentiments.size}
-          options={sentOpts.map((o) => ({
-            key: o.v,
-            label: o.label,
-            tone: o.tone,
-            active: sentiments.has(o.v),
-            onToggle: () => toggle(sentiments, o.v, setSentiments),
-          }))}
-        />
-        <FilterPopover
-          label="Severity"
-          count={severities.size}
-          options={sevOpts.map((o) => ({
-            key: o.v,
-            label: o.label,
-            active: severities.has(o.v),
-            onToggle: () => toggle(severities, o.v, setSeverities),
-          }))}
-        />
-        <FilterPopover
-          label="Source"
-          count={sourceGroups.size}
-          options={srcOpts.map((o) => ({
-            key: o,
-            label: o,
-            active: sourceGroups.has(o),
-            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
-          }))}
-        />
-
         {activeCount > 0 && (
           <button
             onClick={onReset}
@@ -933,54 +901,112 @@ function FilterBar({
           </button>
         )}
       </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <PillRow
+          label="Sentiment"
+          options={sentOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            tone: o.tone,
+            active: sentiments.has(o.v),
+            onToggle: () => toggle(sentiments, o.v, setSentiments),
+          }))}
+        />
+        <PillRow
+          label="Severity"
+          options={sevOpts.map((o) => ({
+            key: o.v,
+            label: o.label,
+            active: severities.has(o.v),
+            onToggle: () => toggle(severities, o.v, setSeverities),
+          }))}
+        />
+        <PillRow
+          label="Source"
+          options={srcOpts.map((o) => ({
+            key: o,
+            label: o,
+            active: sourceGroups.has(o),
+            onToggle: () => toggle(sourceGroups, o, setSourceGroups),
+          }))}
+        />
+      </div>
     </div>
   );
 }
 
-function FilterPopover({
+function PillRow({
   label,
-  count,
   options,
 }: {
   label: string;
-  count: number;
   options: { key: string; label: string; tone?: string; active: boolean; onToggle: () => void }[];
 }) {
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
+        {label}
+      </span>
+      {options.map((o) => (
         <button
+          key={o.key}
+          onClick={o.onToggle}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-[11px] font-medium transition-colors hover:bg-accent",
-            count > 0 && "border-primary text-primary",
+            "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors",
+            o.active
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-card text-foreground/70 hover:bg-accent",
           )}
         >
-          <Filter className="h-3 w-3" />
-          {label}
-          {count > 0 && (
-            <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-              {count}
-            </span>
-          )}
-          <ChevronDown className="h-3 w-3 opacity-60" />
+          {o.active && <CheckCircle2 className="h-2.5 w-2.5" />}
+          <span className={cn(!o.active && o.tone)}>{o.label}</span>
         </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-48 p-1">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            onClick={o.onToggle}
-            className={cn(
-              "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent",
-              o.active && "bg-accent",
-            )}
-          >
-            <span className={cn("font-medium", o.tone)}>{o.label}</span>
-            {o.active && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
-          </button>
-        ))}
-      </PopoverContent>
-    </Popover>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  hasFilters,
+  onReset,
+}: {
+  hasFilters: boolean;
+  onReset: () => void;
+}) {
+  if (hasFilters) {
+    return (
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Search className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-sm font-semibold">ไม่มีรายการตรงกับ filter</div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            ลองลด filter หรือขยายช่วงเวลาเพื่อดูสัญญาณเพิ่มเติม
+          </p>
+        </div>
+        <button
+          onClick={onReset}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-semibold hover:bg-accent"
+        >
+          <X className="h-3.5 w-3.5" /> Clear all filters
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/15 text-success">
+        <CheckCheck className="h-6 w-6" />
+      </div>
+      <div>
+        <div className="text-sm font-semibold">All clear — ไม่มีสัญญาณที่ต้องดำเนินการ</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          ระบบยัง monitoring อยู่ตลอด · sync ครั้งถัดไปใน 5 นาที
+        </p>
+      </div>
+    </div>
   );
 }
 
