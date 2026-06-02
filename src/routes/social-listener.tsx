@@ -560,7 +560,7 @@ function SocialListenerPage() {
           return (
             <button
               key={t}
-              onClick={() => setActiveTarget(active ? "all" : t)}
+              onClick={() => onTargetClick(active ? "all" : t)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
                 active
