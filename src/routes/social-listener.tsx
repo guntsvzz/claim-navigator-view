@@ -360,6 +360,25 @@ function SocialListenerPage() {
   const [sourceGroups, setSourceGroups] = useState<Set<SourceGroup>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+  const feedRef = useRef<HTMLDivElement | null>(null);
+
+  const activeSourceCount = sources.filter((s) => s.active).length;
+
+  const scrollToFeed = () => {
+    requestAnimationFrame(() => {
+      feedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const onTargetClick = (t: Target | "all") => {
+    setActiveTarget(t);
+    scrollToFeed();
+  };
+  const onCategoryClick = (c: Category | "all") => {
+    setActiveCat(c);
+    scrollToFeed();
+  };
 
   const activeFilterCount =
     sentiments.size + severities.size + sourceGroups.size + (dateRange !== "30d" ? 1 : 0);
