@@ -594,7 +594,7 @@ function SocialListenerPage() {
           return (
             <button
               key={c}
-              onClick={() => setActiveCat(active ? "all" : c)}
+              onClick={() => onCategoryClick(active ? "all" : c)}
               className={cn(
                 "rounded-lg border bg-card p-4 text-left transition-all",
                 active
