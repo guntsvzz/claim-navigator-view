@@ -676,11 +676,21 @@ function SocialListenerPage() {
       </div>
 
       {/* Feed + sidebar */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div ref={feedRef} className="grid grid-cols-1 gap-4 lg:grid-cols-3 scroll-mt-4">
         <div className="lg:col-span-2">
           <Panel
-            title="Signals feed"
-            subtitle={`${filtered.length} จาก ${FEED.length} รายการ`}
+            title={
+              activeTarget !== "all"
+                ? `Showing ${filtered.length} signals for ${TARGET_META[activeTarget].label}`
+                : activeCat !== "all"
+                  ? `Showing ${filtered.length} signals · ${CATEGORY_META[activeCat].label}`
+                  : "Signals feed"
+            }
+            subtitle={
+              activeTarget !== "all" || activeCat !== "all" || activeFilterCount > 0 || query
+                ? `${filtered.length} จาก ${FEED.length} รายการ · filters active`
+                : `${filtered.length} จาก ${FEED.length} รายการ`
+            }
             bodyClassName="p-0"
           >
             <FilterBar
@@ -702,8 +712,16 @@ function SocialListenerPage() {
                 <FeedItem key={n.id} item={n} />
               ))}
               {filtered.length === 0 && (
-                <li className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  ไม่มีรายการตรงกับ filter ปัจจุบัน
+                <li className="px-6 py-16">
+                  <EmptyState
+                    hasFilters={activeFilterCount > 0 || activeTarget !== "all" || activeCat !== "all" || !!query}
+                    onReset={() => {
+                      resetFilters();
+                      setActiveTarget("all");
+                      setActiveCat("all");
+                      setQuery("");
+                    }}
+                  />
                 </li>
               )}
             </ul>
