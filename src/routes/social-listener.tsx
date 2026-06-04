@@ -396,7 +396,7 @@ function SocialListenerPage() {
 
   const filtered = useMemo(() => {
     const limit = DATE_LIMIT[dateRange];
-    return FEED.filter((n) => {
+    return FEED_ALL.filter((n) => {
       if (activeTarget !== "all" && n.target !== activeTarget) return false;
       if (activeCat !== "all" && n.category !== activeCat) return false;
       if (sentiments.size > 0 && !sentiments.has(n.sentiment)) return false;
@@ -416,7 +416,7 @@ function SocialListenerPage() {
         return false;
       return true;
     });
-  }, [activeCat, activeTarget, sentiments, severities, sourceGroups, dateRange, query]);
+  }, [FEED_ALL, activeCat, activeTarget, sentiments, severities, sourceGroups, dateRange, query]);
 
   const resetFilters = () => {
     setSentiments(new Set());
@@ -427,18 +427,24 @@ function SocialListenerPage() {
 
   const counts = useMemo(() => {
     const c = { self: 0, customer: 0, regulation: 0, fraud: 0 } as Record<Category, number>;
-    FEED.forEach((n) => c[n.category]++);
+    FEED_ALL.forEach((n) => c[n.category]++);
     return c;
-  }, []);
+  }, [FEED_ALL]);
 
   const targetCounts = useMemo(() => {
     const c = { bvtpa: 0, insurer: 0, provider: 0, industry: 0 } as Record<Target, number>;
-    FEED.forEach((n) => c[n.target]++);
+    FEED_ALL.forEach((n) => c[n.target]++);
     return c;
-  }, []);
+  }, [FEED_ALL]);
 
+  const critical = FEED_ALL.filter((n) => n.severity === "critical");
 
-  const critical = FEED.filter((n) => n.severity === "critical");
+  const handleAddSignal = (s: NewsItem) => {
+    setManualSignals((prev) => [s, ...prev]);
+    toast.success("Signal added to feed", {
+      description: `${TARGET_META[s.target].label} · ${s.sentiment} · ${s.severity}`,
+    });
+  };
 
   return (
     <div className="space-y-6">
