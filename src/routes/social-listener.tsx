@@ -34,6 +34,11 @@ import {
   ListPlus,
   Siren,
   CheckCheck,
+  ChevronDown,
+  Wand2,
+  PenLine,
+  Pin,
+  Hash,
 } from "lucide-react";
 import {
   Sheet,
@@ -42,6 +47,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Panel } from "@/components/dashboard/panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
