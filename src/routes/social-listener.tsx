@@ -368,9 +368,12 @@ function SocialListenerPage() {
   const [sourceGroups, setSourceGroups] = useState<Set<SourceGroup>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>("30d");
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [addSignalOpen, setAddSignalOpen] = useState(false);
   const [sources, setSources] = useState<ConfiguredSource[]>(SEED_SOURCES);
+  const [manualSignals, setManualSignals] = useState<NewsItem[]>([]);
   const feedRef = useRef<HTMLDivElement | null>(null);
 
+  const FEED_ALL = useMemo(() => [...manualSignals, ...FEED], [manualSignals]);
   const activeSourceCount = sources.filter((s) => s.active).length;
 
   const scrollToFeed = () => {
