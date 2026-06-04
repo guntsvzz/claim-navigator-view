@@ -1042,60 +1042,64 @@ function EmptyState({
   );
 }
 
-function DataSourcesSection({
+type Bucket = "entity" | "topic" | "custom";
+
+function bucketOf(s: ConfiguredSource): Bucket {
+  if (s.entity && (s.scope === "insurer" || s.scope === "provider")) return "entity";
+  if (s.scope === "industry") return "topic";
+  return "custom";
+}
+
+const BUCKET_META: Record<
+  Bucket,
+  { label: string; desc: string; icon: typeof Pin; tone: string }
+> = {
+  entity: {
+    label: "Pinned to entity",
+    desc: "URLs linked to an Insurer or Provider in the system",
+    icon: Pin,
+    tone: "text-primary",
+  },
+  topic: {
+    label: "Topic / Governance",
+    desc: "Regulators, ministries, industry associations",
+    icon: Hash,
+    tone: "text-warning",
+  },
+  custom: {
+    label: "Custom",
+    desc: "Other sources not tied to a specific entity or topic",
+    icon: Globe,
+    tone: "text-muted-foreground",
+  },
+};
+
+function ManageSourcesPanel({
   sources,
   setSources,
 }: {
   sources: ConfiguredSource[];
   setSources: React.Dispatch<React.SetStateAction<ConfiguredSource[]>>;
 }) {
-  const [newUrl, setNewUrl] = useState("");
-  const [newLabel, setNewLabel] = useState("");
-  const [newScope, setNewScope] = useState<Target>("industry");
-  const [newEntity, setNewEntity] = useState("");
-  const [newKind, setNewKind] = useState<"rss" | "page" | "social">("page");
+  const [open, setOpen] = useState<Record<Bucket, boolean>>({
+    entity: true,
+    topic: true,
+    custom: false,
+  });
+  const [adding, setAdding] = useState<Bucket | null>(null);
 
-  // Manual news upload state
-  const [mTitle, setMTitle] = useState("");
-  const [mUrl, setMUrl] = useState("");
-  const [mSummary, setMSummary] = useState("");
-  const [mScope, setMScope] = useState<Target>("industry");
-  const [mSentiment, setMSentiment] = useState<Sentiment>("negative");
-  const [mSeverity, setMSeverity] = useState<Severity>("med");
-  const [uploaded, setUploaded] = useState<
-    { id: string; title: string; scope: Target; sentiment: Sentiment; severity: Severity; time: string }[]
-  >([]);
-
-  const addSource = () => {
-    if (!newUrl.trim()) return;
-    setSources((s) => [
-      {
-        id: `s${Date.now()}`,
-        url: newUrl.trim(),
-        label: newLabel.trim() || newUrl.trim(),
-        scope: newScope,
-        entity: newEntity.trim() || undefined,
-        kind: newKind,
-        active: true,
-      },
-      ...s,
-    ]);
-    setNewUrl("");
-    setNewLabel("");
-    setNewEntity("");
-    toast.success("Source added", {
-      description: "Will sync in next cycle.",
-    });
-  };
+  const buckets = useMemo(() => {
+    const map: Record<Bucket, ConfiguredSource[]> = { entity: [], topic: [], custom: [] };
+    sources.forEach((s) => map[bucketOf(s)].push(s));
+    return map;
+  }, [sources]);
 
   const toggleSource = (id: string) =>
     setSources((s) =>
       s.map((x) => {
         if (x.id !== id) return x;
         const next = { ...x, active: !x.active };
-        toast(next.active ? "Source resumed" : "Source paused", {
-          description: x.label,
-        });
+        toast(next.active ? "Source resumed" : "Source paused", { description: x.label });
         return next;
       }),
     );
@@ -1106,215 +1110,371 @@ function DataSourcesSection({
       return s.filter((x) => x.id !== id);
     });
 
-  const submitManual = () => {
-    if (!mTitle.trim()) return;
-    setUploaded((u) => [
-      {
-        id: `m${Date.now()}`,
-        title: mTitle.trim(),
-        scope: mScope,
-        sentiment: mSentiment,
-        severity: mSeverity,
-        time: "เพิ่งอัปโหลด",
-      },
-      ...u,
-    ]);
-    setMTitle("");
-    setMUrl("");
-    setMSummary("");
-    toast.success("Signal added to feed", {
-      description: `${TARGET_META[mScope].label} · ${mSentiment} · ${mSeverity}`,
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">Tip:</span> เพิ่ม "Pinned to entity" source ตอน
+        onboarding Insurer / Provider ใหม่ในระบบ จะเป็นจุดที่เหมาะกว่า
+      </div>
+
+      {(Object.keys(BUCKET_META) as Bucket[]).map((b) => {
+        const meta = BUCKET_META[b];
+        const Icon = meta.icon;
+        const items = buckets[b];
+        const activeCount = items.filter((x) => x.active).length;
+        const isOpen = open[b];
+        return (
+          <div key={b} className="overflow-hidden rounded-md border border-border">
+            <button
+              onClick={() => setOpen((o) => ({ ...o, [b]: !o[b] }))}
+              className="flex w-full items-center gap-3 bg-card px-3 py-2.5 text-left hover:bg-accent/40"
+            >
+              <Icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{meta.label}</span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                    {activeCount}/{items.length}
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">{meta.desc}</div>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </button>
+
+            {isOpen && (
+              <div className="border-t border-border bg-background">
+                {items.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-[11px] text-muted-foreground">
+                    ยังไม่มี source ในกลุ่มนี้
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {items.map((s) => {
+                      const KindIcon = s.kind === "rss" ? Rss : s.kind === "social" ? MessageSquare : Globe;
+                      return (
+                        <li key={s.id} className="flex items-start gap-3 px-3 py-2.5">
+                          <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted", TARGET_META[s.scope].tone)}>
+                            <KindIcon className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="truncate text-sm font-medium">{s.label}</span>
+                              {s.entity && (
+                                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground/70">
+                                  {s.entity}
+                                </span>
+                              )}
+                            </div>
+                            <a
+                              href={s.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-muted-foreground hover:text-primary"
+                            >
+                              <Link2 className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{s.url}</span>
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleSource(s.id)}
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+                                s.active
+                                  ? "bg-success/15 text-success"
+                                  : "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              {s.active ? "Active" : "Paused"}
+                            </button>
+                            <button
+                              onClick={() => removeSource(s.id)}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <div className="border-t border-border p-2">
+                  {adding === b ? (
+                    <InlineAddSource
+                      bucket={b}
+                      onCancel={() => setAdding(null)}
+                      onAdd={(src) => {
+                        setSources((prev) => [src, ...prev]);
+                        setAdding(null);
+                        toast.success("Source added", { description: "Will sync in next cycle." });
+                      }}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setAdding(b)}
+                      className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                    >
+                      <Plus className="h-3 w-3" /> Add to {meta.label}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function InlineAddSource({
+  bucket,
+  onAdd,
+  onCancel,
+}: {
+  bucket: Bucket;
+  onAdd: (s: ConfiguredSource) => void;
+  onCancel: () => void;
+}) {
+  const [url, setUrl] = useState("");
+  const [label, setLabel] = useState("");
+  const [entity, setEntity] = useState("");
+  const [scope, setScope] = useState<Target>(
+    bucket === "topic" ? "industry" : bucket === "entity" ? "insurer" : "bvtpa",
+  );
+  const [kind, setKind] = useState<"rss" | "page" | "social">("page");
+
+  const submit = () => {
+    if (!url.trim()) return;
+    onAdd({
+      id: `s${Date.now()}`,
+      url: url.trim(),
+      label: label.trim() || url.trim(),
+      scope: bucket === "topic" ? "industry" : scope,
+      entity: bucket === "entity" ? entity.trim() || undefined : undefined,
+      kind,
+      active: true,
     });
   };
 
   return (
-    <div>
-      <div className="mb-3 flex items-end justify-between">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Configuration
-          </div>
-          <h2 className="mt-0.5 text-lg font-bold tracking-tight">Online & Offline data sources</h2>
-          <p className="text-xs text-muted-foreground">
-            กำหนดเอง URL ที่อยากให้ระบบติดตาม หรืออัปโหลดข่าวที่เจอเองพร้อมระบุ sentiment / severity
-          </p>
-        </div>
-        <div className="text-[11px] text-muted-foreground">
-          {sources.filter((s) => s.active).length} active · {sources.length} total
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Online sources */}
-        <Panel
-          title={
-            <span className="inline-flex items-center gap-2">
-              <Globe className="h-4 w-4" /> Online sources (URL)
-            </span>
-          }
-          subtitle="RSS / หน้าข่าว / โซเชียลที่อยากให้ระบบ crawl"
+    <div className="grid grid-cols-1 gap-2 rounded-md bg-muted/30 p-2 md:grid-cols-2">
+      <Input
+        placeholder="https://example.com/news หรือ RSS"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        className="h-8 text-xs md:col-span-2"
+      />
+      <Input
+        placeholder="Label"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        className="h-8 text-xs"
+      />
+      {bucket === "entity" ? (
+        <Input
+          placeholder="Entity (e.g. AIA Thailand)"
+          value={entity}
+          onChange={(e) => setEntity(e.target.value)}
+          className="h-8 text-xs"
+        />
+      ) : (
+        <KindPicker value={kind} onChange={setKind} />
+      )}
+      {bucket === "entity" && (
+        <>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as Target)}
+            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+          >
+            <option value="insurer">Scope: Insurer</option>
+            <option value="provider">Scope: Provider</option>
+          </select>
+          <KindPicker value={kind} onChange={setKind} />
+        </>
+      )}
+      <div className="flex items-center justify-end gap-2 md:col-span-2">
+        <button
+          onClick={onCancel}
+          className="inline-flex h-7 items-center rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:bg-accent"
         >
-          <div className="space-y-3">
-            <div className="rounded-md border border-dashed border-border bg-muted/30 p-3">
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <Input
-                  placeholder="https://example.com/news หรือ RSS feed"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  className="h-8 text-xs md:col-span-2"
-                />
-                <Input
-                  placeholder="Label (เช่น คปภ. — ข่าวประชาสัมพันธ์)"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  className="h-8 text-xs"
-                />
-                <Input
-                  placeholder="Entity (optional) เช่น AIA Thailand"
-                  value={newEntity}
-                  onChange={(e) => setNewEntity(e.target.value)}
-                  className="h-8 text-xs"
-                />
-                <ScopePicker value={newScope} onChange={setNewScope} />
-                <div className="flex items-center justify-between gap-2">
-                  <KindPicker value={newKind} onChange={setNewKind} />
-                  <button
-                    onClick={addSource}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> เพิ่ม source
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <ul className="divide-y divide-border rounded-md border border-border">
-              {sources.map((s) => {
-                const meta = TARGET_META[s.scope];
-                const KindIcon = s.kind === "rss" ? Rss : s.kind === "social" ? MessageSquare : Globe;
-                return (
-                  <li key={s.id} className="flex items-start gap-3 px-3 py-2.5">
-                    <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted", meta.tone)}>
-                      <KindIcon className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate text-sm font-medium">{s.label}</span>
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground/70">
-                          {meta.label}
-                        </span>
-                        {s.entity && (
-                          <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-medium text-foreground/70">
-                            {s.entity}
-                          </span>
-                        )}
-                      </div>
-                      <a
-                        href={s.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-muted-foreground hover:text-primary"
-                      >
-                        <Link2 className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{s.url}</span>
-                      </a>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => toggleSource(s.id)}
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                          s.active
-                            ? "bg-success/15 text-success"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {s.active ? "Active" : "Paused"}
-                      </button>
-                      <button
-                        onClick={() => removeSource(s.id)}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </Panel>
-
-        {/* Manual news upload */}
-        <Panel
-          title={
-            <span className="inline-flex items-center gap-2">
-              <Upload className="h-4 w-4" /> Manual news upload
-            </span>
-          }
-          subtitle="เจอข่าวเอง? เพิ่มเข้าฟีดและกำหนดความเสี่ยงได้เลย"
+          Cancel
+        </button>
+        <button
+          onClick={submit}
+          className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"
         >
-          <div className="space-y-2.5">
-            <Input
-              placeholder="หัวข้อข่าว"
-              value={mTitle}
-              onChange={(e) => setMTitle(e.target.value)}
-              className="h-8 text-xs"
-            />
-            <Input
-              placeholder="URL ที่มา (optional)"
-              value={mUrl}
-              onChange={(e) => setMUrl(e.target.value)}
-              className="h-8 text-xs"
-            />
-            <Textarea
-              placeholder="สรุปสั้น ๆ / ทำไมถึง flag"
-              value={mSummary}
-              onChange={(e) => setMSummary(e.target.value)}
-              className="min-h-[70px] text-xs"
-            />
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              <ScopePicker value={mScope} onChange={setMScope} compact />
-              <SentimentPicker2 value={mSentiment} onChange={setMSentiment} />
-              <SeverityPicker value={mSeverity} onChange={setMSeverity} />
-            </div>
-            <button
-              onClick={submitManual}
-              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-primary text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              <FileText className="h-3.5 w-3.5" /> เพิ่มเข้าฟีด
-            </button>
-
-            {uploaded.length > 0 && (
-              <ul className="mt-3 space-y-2 border-t border-border pt-3">
-                {uploaded.map((u) => (
-                  <li key={u.id} className="flex items-start gap-2 rounded-md bg-muted/40 p-2">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-xs font-medium">{u.title}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
-                        <span className="rounded-full bg-card px-1.5 py-0.5 font-semibold uppercase tracking-wider">
-                          {TARGET_META[u.scope].label}
-                        </span>
-                        <span className={cn("rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wider", SENT_STYLE[u.sentiment])}>
-                          {u.sentiment}
-                        </span>
-                        <span className={cn("rounded-full px-1.5 py-0.5 font-semibold uppercase tracking-wider", SEV_STYLE[u.severity])}>
-                          {u.severity}
-                        </span>
-                        <span>· {u.time}</span>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Panel>
+          <Plus className="h-3 w-3" /> Add source
+        </button>
       </div>
     </div>
   );
 }
+
+function AddSignalDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (b: boolean) => void;
+  onSubmit: (s: NewsItem) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [target, setTarget] = useState<Target>("bvtpa");
+  const [sentiment, setSentiment] = useState<Sentiment>("neutral");
+  const [severity, setSeverity] = useState<Severity>("med");
+  const [aiInferred, setAiInferred] = useState(false);
+
+  // Tiny heuristic "AI" — infers from body keywords whenever body changes.
+  // User can still adjust before submit.
+  const inferFromBody = () => {
+    const text = (title + " " + body).toLowerCase();
+    let s: Sentiment = "neutral";
+    if (/(ฟ้อง|ร้องเรียน|ทุจริต|ปลอม|ถูกจับ|ล้มละลาย|ขาดทุน|fraud|lawsuit|complaint)/.test(text))
+      s = "negative";
+    else if (/(เปิดตัว|กำไร|รางวัล|ขยาย|partner|launch|grow)/.test(text)) s = "positive";
+
+    let sev: Severity = "med";
+    if (/(critical|วิกฤต|เร่งด่วน|ทุจริต|ฟ้อง)/.test(text)) sev = "critical";
+    else if (/(เสี่ยง|กระทบ|ปรับ|warning|high)/.test(text)) sev = "high";
+    else if (/(ทั่วไป|รายงาน|info)/.test(text)) sev = "low";
+
+    let t: Target = target;
+    if (/(bvtpa|เรา|บริษัทเรา)/i.test(text)) t = "bvtpa";
+    else if (/(aia|fwd|muang thai|ประกัน|insurer)/.test(text)) t = "insurer";
+    else if (/(รพ|hospital|clinic|bumrungrad|โรงพยาบาล|คลินิก)/.test(text)) t = "provider";
+    else if (/(คปภ|ปปง|กฎหมาย|พ\.ร\.บ|oic|regulation)/.test(text)) t = "industry";
+
+    setSentiment(s);
+    setSeverity(sev);
+    setTarget(t);
+    setAiInferred(true);
+  };
+
+  const reset = () => {
+    setTitle("");
+    setBody("");
+    setSourceUrl("");
+    setTarget("bvtpa");
+    setSentiment("neutral");
+    setSeverity("med");
+    setAiInferred(false);
+  };
+
+  const submit = () => {
+    if (!title.trim()) return;
+    const cat: Category =
+      target === "bvtpa"
+        ? "self"
+        : target === "industry"
+          ? "regulation"
+          : "customer";
+    onSubmit({
+      id: `m${Date.now()}`,
+      title: title.trim(),
+      summary: body.trim() || "(Manual signal — no summary)",
+      source: sourceUrl.trim() || "Manual entry",
+      sourceType: "Manual",
+      time: "เพิ่งเพิ่ม",
+      hoursAgo: 0,
+      sentiment,
+      category: cat,
+      severity,
+      target,
+      entities: [],
+      reach: 0,
+      mentions: 1,
+      url: sourceUrl.trim() || "#",
+      manual: true,
+    });
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(b) => { onOpenChange(b); if (!b) reset(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PenLine className="h-4 w-4" /> Add Signal
+          </DialogTitle>
+          <DialogDescription>
+            เจอข่าวจาก print / PDF / screenshot? เพิ่มเข้าฟีดได้เลย AI จะช่วยเดา sentiment & severity
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2.5">
+          <Input
+            placeholder="หัวข้อ / Headline"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="text-sm"
+          />
+          <Textarea
+            placeholder="วาง content, สรุปสั้น หรือคำอธิบายทำไมถึง flag…"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className="min-h-[110px] text-sm"
+          />
+          <Input
+            placeholder="URL ที่มา (optional)"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            className="h-9 text-xs"
+          />
+
+          <div className="flex items-center justify-between rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
+            <div className="text-[11px] text-muted-foreground">
+              {aiInferred ? "AI inferred — adjust below if needed" : "Auto-detect sentiment & severity"}
+            </div>
+            <button
+              onClick={inferFromBody}
+              disabled={!title && !body}
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-card border border-border px-2.5 text-[11px] font-semibold hover:bg-accent disabled:opacity-50"
+            >
+              <Wand2 className="h-3 w-3" /> Auto-detect
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+            <ScopePicker value={target} onChange={setTarget} compact />
+            <SentimentPicker2 value={sentiment} onChange={setSentiment} />
+            <SeverityPicker value={severity} onChange={setSeverity} />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <button
+            onClick={() => { reset(); onOpenChange(false); }}
+            className="inline-flex h-9 items-center rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-accent"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!title.trim()}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add to feed
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function ScopePicker({
   value,
