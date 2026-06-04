@@ -96,7 +96,7 @@ type NewsItem = {
   title: string;
   summary: string;
   source: string;
-  sourceType: "News" | "Facebook" | "X" | "Pantip" | "Gov" | "Blog";
+  sourceType: "News" | "Facebook" | "X" | "Pantip" | "Gov" | "Blog" | "Manual";
   time: string;
   hoursAgo?: number;
   sentiment: Sentiment;
@@ -108,6 +108,7 @@ type NewsItem = {
   mentions: number;
   url: string;
   hot?: boolean;
+  manual?: boolean;
 };
 
 const FEED: NewsItem[] = [
