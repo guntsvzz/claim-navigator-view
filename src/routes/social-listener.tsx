@@ -567,13 +567,13 @@ function SocialListenerPage() {
               : "text-muted-foreground hover:bg-accent",
           )}
         >
-          All · {FEED.length}
+          All · {FEED_ALL.length}
         </button>
         {(Object.keys(TARGET_META) as Target[]).map((t) => {
           const meta = TARGET_META[t];
           const Icon = meta.icon;
           const active = activeTarget === t;
-          const negCount = FEED.filter((n) => n.target === t && n.sentiment === "negative").length;
+          const negCount = FEED_ALL.filter((n) => n.target === t && n.sentiment === "negative").length;
           return (
             <button
               key={t}
@@ -705,8 +705,8 @@ function SocialListenerPage() {
             }
             subtitle={
               activeTarget !== "all" || activeCat !== "all" || activeFilterCount > 0 || query
-                ? `${filtered.length} จาก ${FEED.length} รายการ · filters active`
-                : `${filtered.length} จาก ${FEED.length} รายการ`
+                ? `${filtered.length} จาก ${FEED_ALL.length} รายการ · filters active`
+                : `${filtered.length} จาก ${FEED_ALL.length} รายการ`
             }
             bodyClassName="p-0"
           >
