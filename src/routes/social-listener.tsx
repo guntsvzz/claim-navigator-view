@@ -810,22 +810,30 @@ function SocialListenerPage() {
         </div>
       </div>
 
-      {/* Part 2: Data source configuration (slide-over) */}
+      {/* Manage Sources — admin task (Job 1: "Watch this for me") */}
       <Sheet open={sourcesOpen} onOpenChange={setSourcesOpen}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4" /> Manage data sources
+              <Settings2 className="h-4 w-4" /> Manage Sources
             </SheetTitle>
             <SheetDescription>
-              กำหนด URL ที่อยากให้ระบบติดตาม หรืออัปโหลดข่าวที่เจอเองพร้อมระบุ sentiment / severity
+              URL ที่ระบบ crawl อัตโนมัติ จัดกลุ่มตามความสัมพันธ์กับ entity ในระบบ
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6">
-            <DataSourcesSection sources={sources} setSources={setSources} />
+            <ManageSourcesPanel sources={sources} setSources={setSources} />
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Add Signal — in-the-moment capture (Job 2: "I found something, log it") */}
+      <AddSignalDialog
+        open={addSignalOpen}
+        onOpenChange={setAddSignalOpen}
+        onSubmit={handleAddSignal}
+      />
+
     </div>
   );
 }
