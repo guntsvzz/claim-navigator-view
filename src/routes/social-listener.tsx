@@ -1641,6 +1641,11 @@ function FeedItem({ item }: { item: NewsItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
+          {item.manual && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-info/40 bg-info/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-info">
+              <PenLine className="h-2.5 w-2.5" /> Manual
+            </span>
+          )}
           <span
             className={cn(
               "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
