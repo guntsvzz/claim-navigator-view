@@ -459,7 +459,7 @@ function SocialListenerPage() {
             Real-time monitoring ของข่าวสาร, social signal และความเสี่ยงที่กระทบ BVTPA, ลูกค้า, และอุตสาหกรรม
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
@@ -473,7 +473,14 @@ function SocialListenerPage() {
           >
             <Settings2 className="h-3.5 w-3.5" /> Manage Sources
           </button>
+          <button
+            onClick={() => setAddSignalOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Signal
+          </button>
         </div>
+
       </div>
 
       {/* KPI strip */}
