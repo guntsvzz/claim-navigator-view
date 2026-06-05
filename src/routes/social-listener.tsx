@@ -1042,37 +1042,108 @@ function EmptyState({
   );
 }
 
-type Bucket = "entity" | "topic" | "custom";
+// =====================================================================
+// Manage Sources — entity-first
+// =====================================================================
 
-function bucketOf(s: ConfiguredSource): Bucket {
-  if (s.entity && (s.scope === "insurer" || s.scope === "provider")) return "entity";
-  if (s.scope === "industry") return "topic";
-  return "custom";
+type EntityRow = {
+  id: string;
+  name: string;
+  type: "Insurer" | "Provider";
+  domainHint: string;
+};
+
+// Build a realistic-feeling directory of ~150 entities for the demo,
+// seeded with the real mock-data records so screenshots stay consistent.
+const EXTRA_INSURERS: { code: string; name: string }[] = [
+  { code: "AXA", name: "AXA Insurance" }, { code: "ALZ", name: "Allianz Ayudhya" },
+  { code: "CHB", name: "Chubb Life" }, { code: "GEN", name: "Generali Thailand" },
+  { code: "ING", name: "Ing Life" }, { code: "PRD", name: "Prudential Thailand" },
+  { code: "SCB", name: "SCB Life" }, { code: "KTL", name: "Krungthai-AXA Life" },
+  { code: "TCB", name: "Tokio Marine Life" }, { code: "MSI", name: "MSIG Insurance" },
+  { code: "DHP", name: "Dhipaya Insurance" }, { code: "VBG", name: "Viriyah Insurance" },
+  { code: "BUI", name: "Bangkok Union Insurance" }, { code: "TUI", name: "Thai Union Insurance" },
+  { code: "ETQ", name: "Etiqa Insurance" }, { code: "OCN", name: "Ocean Life" },
+];
+const EXTRA_PROVIDERS: { code: string; name: string }[] = [
+  { code: "SRK", name: "Siriraj Hospital" }, { code: "CMU", name: "Chulalongkorn Hospital" },
+  { code: "RMD", name: "Ramathibodi Hospital" }, { code: "BHQ", name: "BHQ Medical Centre" },
+  { code: "MET", name: "Metro Hospital" }, { code: "PYO", name: "Phayao Hospital" },
+  { code: "BNK", name: "Bangkok Nursing Home" }, { code: "PSC", name: "Police General Hospital" },
+  { code: "STH", name: "Saint Louis Hospital" }, { code: "TNW", name: "Thainakarin Hospital" },
+  { code: "SKM", name: "Sukumvit Hospital" }, { code: "LMC", name: "Lardprao Medical Center" },
+  { code: "NPH", name: "Nopparat Hospital" }, { code: "BNP", name: "Bangpakok Hospital" },
+  { code: "RBT", name: "Ratchaburi Tropical Hospital" }, { code: "HKM", name: "Hat Yai Medical" },
+  { code: "PRC", name: "Praram 9 Hospital" }, { code: "MCT", name: "Mayo Clinic Thailand" },
+];
+
+function slugDomain(name: string, suffix: string) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 14) || "site";
+  return `${slug}.${suffix}`;
 }
 
-const BUCKET_META: Record<
-  Bucket,
-  { label: string; desc: string; icon: typeof Pin; tone: string }
-> = {
-  entity: {
-    label: "Pinned to entity",
-    desc: "URLs linked to an Insurer or Provider in the system",
-    icon: Pin,
-    tone: "text-primary",
-  },
-  topic: {
-    label: "Topic / Governance",
-    desc: "Regulators, ministries, industry associations",
-    icon: Hash,
-    tone: "text-warning",
-  },
-  custom: {
-    label: "Custom",
-    desc: "Other sources not tied to a specific entity or topic",
-    icon: Globe,
-    tone: "text-muted-foreground",
-  },
-};
+const ENTITY_DIRECTORY: EntityRow[] = (() => {
+  const ins: EntityRow[] = [
+    ...MOCK_INSURERS.map((i) => ({
+      id: i.id,
+      name: i.name_en,
+      type: "Insurer" as const,
+      domainHint: `${i.code.toLowerCase()}.co.th`,
+    })),
+    ...EXTRA_INSURERS.map((i, idx) => ({
+      id: `INSX${idx}`,
+      name: i.name,
+      type: "Insurer" as const,
+      domainHint: slugDomain(i.name, "co.th"),
+    })),
+  ];
+  const prv: EntityRow[] = [
+    ...MOCK_PROVIDERS.map((p) => ({
+      id: p.id,
+      name: p.name_en,
+      type: "Provider" as const,
+      domainHint: `${p.code.toLowerCase()}.com`,
+    })),
+    ...EXTRA_PROVIDERS.map((p, idx) => ({
+      id: `PRVX${idx}`,
+      name: p.name,
+      type: "Provider" as const,
+      domainHint: slugDomain(p.name, "com"),
+    })),
+  ];
+  // Pad with generated branch hospitals to reach a believable ~150
+  const pad: EntityRow[] = [];
+  const cities = ["Chiang Rai", "Khon Kaen", "Korat", "Hat Yai", "Pattaya", "Rayong", "Udon", "Surat", "Phuket", "Hua Hin"];
+  for (let i = pad.length; ins.length + prv.length + pad.length < 150; i++) {
+    const c = cities[i % cities.length];
+    const name = `${c} Regional Hospital ${Math.floor(i / cities.length) + 1}`;
+    pad.push({
+      id: `PRVG${i}`,
+      name,
+      type: "Provider",
+      domainHint: slugDomain(name, "com"),
+    });
+  }
+  return [...ins, ...prv, ...pad];
+})();
+
+function suggestUrlsFor(e: EntityRow): { label: string; url: string }[] {
+  const d = e.domainHint;
+  if (e.type === "Insurer") {
+    return [
+      { label: "Media centre", url: `https://${d}/th/media-centre` },
+      { label: "Press releases", url: `https://${d}/about/news` },
+      { label: "Google News query", url: `https://news.google.com/search?q=${encodeURIComponent(e.name)}` },
+    ];
+  }
+  return [
+    { label: "Hospital news", url: `https://${d}/news` },
+    { label: "Press room", url: `https://${d}/about/press` },
+    { label: "Google News query", url: `https://news.google.com/search?q=${encodeURIComponent(e.name)}` },
+  ];
+}
+
+type ManageTab = "entities" | "general";
 
 function ManageSourcesPanel({
   sources,
@@ -1081,18 +1152,61 @@ function ManageSourcesPanel({
   sources: ConfiguredSource[];
   setSources: React.Dispatch<React.SetStateAction<ConfiguredSource[]>>;
 }) {
-  const [open, setOpen] = useState<Record<Bucket, boolean>>({
-    entity: true,
-    topic: true,
-    custom: false,
-  });
-  const [adding, setAdding] = useState<Bucket | null>(null);
+  const [tab, setTab] = useState<ManageTab>("entities");
+  const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "covered" | "uncovered">("all");
+  const [csvOpen, setCsvOpen] = useState(false);
 
-  const buckets = useMemo(() => {
-    const map: Record<Bucket, ConfiguredSource[]> = { entity: [], topic: [], custom: [] };
-    sources.forEach((s) => map[bucketOf(s)].push(s));
+  // Map entity name → sources
+  const sourcesByEntity = useMemo(() => {
+    const map = new Map<string, ConfiguredSource[]>();
+    sources.forEach((s) => {
+      if (s.entity) {
+        const arr = map.get(s.entity) ?? [];
+        arr.push(s);
+        map.set(s.entity, arr);
+      }
+    });
     return map;
   }, [sources]);
+
+  const generalSources = useMemo(
+    () => sources.filter((s) => !s.entity),
+    [sources],
+  );
+
+  const coveredCount = useMemo(
+    () => ENTITY_DIRECTORY.filter((e) => (sourcesByEntity.get(e.name)?.length ?? 0) > 0).length,
+    [sourcesByEntity],
+  );
+  const total = ENTITY_DIRECTORY.length;
+  const pct = Math.round((coveredCount / total) * 100);
+
+  const filteredEntities = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return ENTITY_DIRECTORY.filter((e) => {
+      const has = (sourcesByEntity.get(e.name)?.length ?? 0) > 0;
+      if (filter === "covered" && !has) return false;
+      if (filter === "uncovered" && has) return false;
+      if (!needle) return true;
+      return e.name.toLowerCase().includes(needle) || e.type.toLowerCase().includes(needle);
+    });
+  }, [q, filter, sourcesByEntity]);
+
+  const addSourceForEntity = (e: EntityRow, url: string, label?: string) => {
+    const src: ConfiguredSource = {
+      id: `s${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      url,
+      label: label || `${e.name} — ${new URL(url).hostname.replace("www.", "")}`,
+      scope: e.type === "Insurer" ? "insurer" : "provider",
+      entity: e.name,
+      kind: url.includes("rss") || url.endsWith(".xml") ? "rss" : "page",
+      active: true,
+    };
+    setSources((prev) => [src, ...prev]);
+    toast.success("Source added", { description: `${e.name} · will sync next cycle` });
+  };
 
   const toggleSource = (id: string) =>
     setSources((s) =>
@@ -1111,214 +1225,458 @@ function ManageSourcesPanel({
     });
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-        <span className="font-semibold text-foreground">Tip:</span> เพิ่ม "Pinned to entity" source ตอน
-        onboarding Insurer / Provider ใหม่ในระบบ จะเป็นจุดที่เหมาะกว่า
+    <div className="space-y-4">
+      {/* Coverage indicator */}
+      <div className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-sm font-semibold">
+            <span className="tabular-nums">{coveredCount}</span>
+            <span className="text-muted-foreground"> / {total}</span>
+            <span className="ml-1.5 text-muted-foreground font-normal">entities have at least one source</span>
+          </div>
+          <span className="text-xs font-semibold tabular-nums text-primary">{pct}%</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>{total - coveredCount} entities ยังไม่มี source</span>
+          <button
+            onClick={() => setCsvOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 font-semibold text-foreground hover:bg-accent"
+          >
+            <Upload className="h-3 w-3" /> Import via CSV
+          </button>
+        </div>
       </div>
 
-      {(Object.keys(BUCKET_META) as Bucket[]).map((b) => {
-        const meta = BUCKET_META[b];
-        const Icon = meta.icon;
-        const items = buckets[b];
-        const activeCount = items.filter((x) => x.active).length;
-        const isOpen = open[b];
-        return (
-          <div key={b} className="overflow-hidden rounded-md border border-border">
-            <button
-              onClick={() => setOpen((o) => ({ ...o, [b]: !o[b] }))}
-              className="flex w-full items-center gap-3 bg-card px-3 py-2.5 text-left hover:bg-accent/40"
-            >
-              <Icon className={cn("h-4 w-4 shrink-0", meta.tone)} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{meta.label}</span>
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                    {activeCount}/{items.length}
-                  </span>
-                </div>
-                <div className="text-[11px] text-muted-foreground">{meta.desc}</div>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                  isOpen && "rotate-180",
-                )}
+      {/* Tabs */}
+      <div className="flex items-center gap-1 rounded-md border border-border bg-muted/30 p-1">
+        {([
+          { id: "entities", label: "Entities", count: total },
+          { id: "general", label: "General / Governance", count: generalSources.length },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "flex-1 rounded-sm px-2 py-1.5 text-xs font-semibold transition-colors",
+              tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+            <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums">{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "entities" ? (
+        <div className="space-y-2">
+          {/* Search + filter row */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search insurer or provider..."
+                className="h-9 pl-8 text-sm"
               />
-            </button>
-
-            {isOpen && (
-              <div className="border-t border-border bg-background">
-                {items.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-[11px] text-muted-foreground">
-                    ยังไม่มี source ในกลุ่มนี้
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {items.map((s) => {
-                      const KindIcon = s.kind === "rss" ? Rss : s.kind === "social" ? MessageSquare : Globe;
-                      return (
-                        <li key={s.id} className="flex items-start gap-3 px-3 py-2.5">
-                          <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted", TARGET_META[s.scope].tone)}>
-                            <KindIcon className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="truncate text-sm font-medium">{s.label}</span>
-                              {s.entity && (
-                                <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground/70">
-                                  {s.entity}
-                                </span>
-                              )}
-                            </div>
-                            <a
-                              href={s.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-muted-foreground hover:text-primary"
-                            >
-                              <Link2 className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{s.url}</span>
-                            </a>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => toggleSource(s.id)}
-                              className={cn(
-                                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
-                                s.active
-                                  ? "bg-success/15 text-success"
-                                  : "bg-muted text-muted-foreground",
-                              )}
-                            >
-                              {s.active ? "Active" : "Paused"}
-                            </button>
-                            <button
-                              onClick={() => removeSource(s.id)}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-
-                <div className="border-t border-border p-2">
-                  {adding === b ? (
-                    <InlineAddSource
-                      bucket={b}
-                      onCancel={() => setAdding(null)}
-                      onAdd={(src) => {
-                        setSources((prev) => [src, ...prev]);
-                        setAdding(null);
-                        toast.success("Source added", { description: "Will sync in next cycle." });
-                      }}
-                    />
-                  ) : (
-                    <button
-                      onClick={() => setAdding(b)}
-                      className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-primary hover:bg-primary/10"
-                    >
-                      <Plus className="h-3 w-3" /> Add to {meta.label}
-                    </button>
+            </div>
+            <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+              {(["all", "covered", "uncovered"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    "rounded-sm px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors",
+                    filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
-                </div>
+                >
+                  {f === "uncovered" ? "Gaps" : f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Entity list */}
+          <div className="max-h-[460px] overflow-y-auto rounded-md border border-border">
+            {filteredEntities.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">ไม่พบ entity ที่ตรงกับการค้นหา</div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {filteredEntities.slice(0, 80).map((e) => {
+                  const linked = sourcesByEntity.get(e.name) ?? [];
+                  const isOpen = expanded === e.id;
+                  const Icon = e.type === "Insurer" ? Building2 : Hospital;
+                  return (
+                    <li key={e.id}>
+                      <button
+                        onClick={() => setExpanded(isOpen ? null : e.id)}
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/40"
+                      >
+                        <Icon className={cn("h-4 w-4 shrink-0", e.type === "Insurer" ? "text-primary" : "text-success")} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-medium">{e.name}</span>
+                            <span className="rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              {e.type}
+                            </span>
+                          </div>
+                        </div>
+                        {linked.length > 0 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">
+                            <CheckCircle2 className="h-3 w-3" /> {linked.length} source{linked.length > 1 ? "s" : ""}
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            No source yet
+                          </span>
+                        )}
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                            isOpen && "rotate-180",
+                          )}
+                        />
+                      </button>
+
+                      {isOpen && (
+                        <div className="space-y-3 border-t border-border bg-muted/20 px-3 py-3">
+                          {linked.length > 0 && (
+                            <div className="space-y-1.5">
+                              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Linked sources
+                              </div>
+                              <ul className="space-y-1.5">
+                                {linked.map((s) => (
+                                  <li key={s.id} className="flex items-start gap-2 rounded-md border border-border bg-background px-2.5 py-2">
+                                    <Link2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-xs font-medium">{s.label}</div>
+                                      <a
+                                        href={s.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="block truncate text-[10px] text-muted-foreground hover:text-primary"
+                                      >
+                                        {s.url}
+                                      </a>
+                                    </div>
+                                    <button
+                                      onClick={() => toggleSource(s.id)}
+                                      className={cn(
+                                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                                        s.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
+                                      )}
+                                    >
+                                      {s.active ? "Active" : "Paused"}
+                                    </button>
+                                    <button
+                                      onClick={() => removeSource(s.id)}
+                                      className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          <SuggestedAndCustom entity={e} onAdd={addSourceForEntity} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {filteredEntities.length > 80 && (
+              <div className="border-t border-border bg-muted/20 px-3 py-2 text-center text-[10px] text-muted-foreground">
+                Showing first 80 of {filteredEntities.length}. ลด search หรือ filter ให้แคบลง
               </div>
             )}
           </div>
-        );
-      })}
+        </div>
+      ) : (
+        <GeneralSourcesBucket
+          sources={generalSources}
+          onAdd={(src) => {
+            setSources((prev) => [src, ...prev]);
+            toast.success("Source added", { description: "Will sync in next cycle." });
+          }}
+          onToggle={toggleSource}
+          onRemove={removeSource}
+        />
+      )}
+
+      {/* CSV import dialog */}
+      <CsvImportDialog
+        open={csvOpen}
+        onOpenChange={setCsvOpen}
+        onImport={(rows) => {
+          let added = 0;
+          const byName = new Map(ENTITY_DIRECTORY.map((e) => [e.name.toLowerCase(), e]));
+          const next: ConfiguredSource[] = [];
+          rows.forEach((r) => {
+            const e = byName.get(r.name.toLowerCase());
+            if (!e || !r.url) return;
+            next.push({
+              id: `csv${Date.now()}-${added}`,
+              url: r.url,
+              label: `${e.name} — imported`,
+              scope: e.type === "Insurer" ? "insurer" : "provider",
+              entity: e.name,
+              kind: "page",
+              active: true,
+            });
+            added++;
+          });
+          if (added > 0) {
+            setSources((prev) => [...next, ...prev]);
+            toast.success(`Imported ${added} sources`);
+          } else {
+            toast.error("No matching entities found in CSV");
+          }
+          setCsvOpen(false);
+        }}
+      />
     </div>
   );
 }
 
-function InlineAddSource({
-  bucket,
+function SuggestedAndCustom({
+  entity,
   onAdd,
-  onCancel,
 }: {
-  bucket: Bucket;
+  entity: EntityRow;
+  onAdd: (e: EntityRow, url: string, label?: string) => void;
+}) {
+  const [custom, setCustom] = useState("");
+  const suggestions = suggestUrlsFor(entity);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <Wand2 className="h-3 w-3" /> System-suggested URLs
+      </div>
+      <div className="grid grid-cols-1 gap-1.5">
+        {suggestions.map((s) => (
+          <div
+            key={s.url}
+            className="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-2.5 py-1.5"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold">{s.label}</div>
+              <div className="truncate text-[10px] text-muted-foreground">{s.url}</div>
+            </div>
+            <button
+              onClick={() => onAdd(entity, s.url, `${entity.name} — ${s.label}`)}
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-3 w-3" /> Add
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <Input
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          placeholder="หรือวาง URL เอง..."
+          className="h-8 text-xs"
+        />
+        <button
+          onClick={() => {
+            if (!custom.trim()) return;
+            try {
+              new URL(custom.trim());
+            } catch {
+              toast.error("URL ไม่ถูกต้อง");
+              return;
+            }
+            onAdd(entity, custom.trim());
+            setCustom("");
+          }}
+          className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-[11px] font-semibold hover:bg-accent"
+        >
+          <Plus className="h-3 w-3" /> Add custom
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GeneralSourcesBucket({
+  sources,
+  onAdd,
+  onToggle,
+  onRemove,
+}: {
+  sources: ConfiguredSource[];
   onAdd: (s: ConfiguredSource) => void;
-  onCancel: () => void;
+  onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
 }) {
   const [url, setUrl] = useState("");
   const [label, setLabel] = useState("");
-  const [entity, setEntity] = useState("");
-  const [scope, setScope] = useState<Target>(
-    bucket === "topic" ? "industry" : bucket === "entity" ? "insurer" : "bvtpa",
-  );
-  const [kind, setKind] = useState<"rss" | "page" | "social">("page");
+  const [scope, setScope] = useState<Target>("industry");
 
   const submit = () => {
     if (!url.trim()) return;
+    try {
+      new URL(url.trim());
+    } catch {
+      toast.error("URL ไม่ถูกต้อง");
+      return;
+    }
     onAdd({
-      id: `s${Date.now()}`,
+      id: `g${Date.now()}`,
       url: url.trim(),
       label: label.trim() || url.trim(),
-      scope: bucket === "topic" ? "industry" : scope,
-      entity: bucket === "entity" ? entity.trim() || undefined : undefined,
-      kind,
+      scope,
+      kind: "page",
       active: true,
     });
+    setUrl("");
+    setLabel("");
   };
 
   return (
-    <div className="grid grid-cols-1 gap-2 rounded-md bg-muted/30 p-2 md:grid-cols-2">
-      <Input
-        placeholder="https://example.com/news หรือ RSS"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        className="h-8 text-xs md:col-span-2"
-      />
-      <Input
-        placeholder="Label"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        className="h-8 text-xs"
-      />
-      {bucket === "entity" ? (
-        <Input
-          placeholder="Entity (e.g. AIA Thailand)"
-          value={entity}
-          onChange={(e) => setEntity(e.target.value)}
-          className="h-8 text-xs"
-        />
-      ) : (
-        <KindPicker value={kind} onChange={setKind} />
-      )}
-      {bucket === "entity" && (
-        <>
+    <div className="space-y-3">
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">General / Governance</span> — ลิงก์ที่ไม่ผูกกับ insurer หรือ provider เช่น คปภ., ปปง., สมาคมประกัน, กฎหมายใหม่
+      </div>
+
+      <div className="rounded-md border border-border">
+        {sources.length === 0 ? (
+          <div className="p-6 text-center text-xs text-muted-foreground">ยังไม่มี source ในกลุ่มนี้</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {sources.map((s) => (
+              <li key={s.id} className="flex items-start gap-3 px-3 py-2.5">
+                <Hash className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{s.label}</div>
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block truncate text-[11px] text-muted-foreground hover:text-primary"
+                  >
+                    {s.url}
+                  </a>
+                </div>
+                <button
+                  onClick={() => onToggle(s.id)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                    s.active ? "bg-success/15 text-success" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {s.active ? "Active" : "Paused"}
+                </button>
+                <button
+                  onClick={() => onRemove(s.id)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-2 rounded-md border border-border bg-card p-3">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Add general source
+        </div>
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.oic.or.th/th/news" className="h-8 text-xs" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (e.g. คปภ. ข่าวประชาสัมพันธ์)" className="h-8 text-xs" />
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value as Target)}
             className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
           >
-            <option value="insurer">Scope: Insurer</option>
-            <option value="provider">Scope: Provider</option>
+            <option value="industry">Scope: Industry / Regulator</option>
+            <option value="bvtpa">Scope: BVTPA</option>
           </select>
-          <KindPicker value={kind} onChange={setKind} />
-        </>
-      )}
-      <div className="flex items-center justify-end gap-2 md:col-span-2">
-        <button
-          onClick={onCancel}
-          className="inline-flex h-7 items-center rounded-md px-2 text-[11px] font-medium text-muted-foreground hover:bg-accent"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={submit}
-          className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-3 w-3" /> Add source
-        </button>
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={submit}
+            className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-3 w-3" /> Add source
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
+function CsvImportDialog({
+  open,
+  onOpenChange,
+  onImport,
+}: {
+  open: boolean;
+  onOpenChange: (b: boolean) => void;
+  onImport: (rows: { name: string; url: string }[]) => void;
+}) {
+  const [text, setText] = useState(
+    "AIA Thailand, https://www.aia.co.th/th/about-aia/media-centre.html\nMuang Thai Life, https://www.muangthai.co.th/news",
+  );
+  const parse = () => {
+    const rows = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        const [name, ...rest] = l.split(",");
+        return { name: (name || "").trim(), url: rest.join(",").trim() };
+      })
+      .filter((r) => r.name && r.url);
+    onImport(rows);
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-4 w-4" /> Import sources via CSV
+          </DialogTitle>
+          <DialogDescription>
+            Format: <code className="rounded bg-muted px-1 py-0.5 text-[11px]">entity_name, url</code> — ระบบจะ match ชื่อกับ entity ในระบบ
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          rows={8}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="font-mono text-xs"
+        />
+        <DialogFooter>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="inline-flex h-8 items-center rounded-md px-3 text-xs font-medium text-muted-foreground hover:bg-accent"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={parse}
+            className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Upload className="h-3 w-3" /> Import
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function AddSignalDialog({
   open,
