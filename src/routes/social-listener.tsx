@@ -58,6 +58,8 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { insurers as MOCK_INSURERS, providers as MOCK_PROVIDERS } from "@/lib/mock-data";
+import { Upload } from "lucide-react";
 import {
   Bar,
   BarChart,
