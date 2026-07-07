@@ -306,12 +306,54 @@ function ExecutivePage() {
 
       {/* 2. Relationship / Engagement */}
       <SectionHeader index="02" title="Relationship & Engagement" subtitle="Service quality and account health" />
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard label="Service Years" value={`${profile.serviceYears} yrs`} sub="Since Sep 2020" icon={Calendar} />
         <KpiCard label="Contract Status" value={profile.contractStatus} sub={`Renews ${profile.renewalDate}`} icon={RefreshCw} tone="success" />
         <KpiCard label="SLA Met Rate" value="94.2%" sub="1,842 of 1,956 cases" icon={Target} tone="success" />
         <KpiCard label="Open Complaints" value="30" sub="MoM +3 cases" icon={AlertTriangle} tone="warning" />
+        <KpiCard label="Digital Adoption" value="78%" sub="Claims via digital channel" delta={12} icon={Smartphone} tone="info" />
       </div>
+      <Panel
+        title="Contract History"
+        subtitle="Start → current term → upcoming renewal"
+        actions={
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <FileSignature className="h-3 w-3" /> {contractMilestones.length} milestones
+          </span>
+        }
+      >
+        <ol className="relative ml-2 space-y-4 border-l border-border pl-6">
+          {contractMilestones.map((m) => {
+            const dot =
+              m.status === "current"
+                ? "bg-primary ring-4 ring-primary/20"
+                : m.status === "upcoming"
+                  ? "bg-background border-2 border-warning"
+                  : "bg-success";
+            const badge =
+              m.status === "current"
+                ? "bg-primary/15 text-primary"
+                : m.status === "upcoming"
+                  ? "bg-warning/15 text-warning"
+                  : "bg-success/15 text-success";
+            return (
+              <li key={m.date} className="relative">
+                <span className={cn("absolute -left-[30px] top-1.5 h-3 w-3 rounded-full", dot)} />
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">{m.date}</span>
+                    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", badge)}>
+                      {m.status}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold">{m.label}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{m.detail}</p>
+              </li>
+            );
+          })}
+        </ol>
+      </Panel>
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Issues & Complaints" subtitle="Trend MoM by category">
           <table className="w-full text-sm">
