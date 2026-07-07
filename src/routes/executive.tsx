@@ -462,6 +462,63 @@ function ExecutivePage() {
           </ul>
         </Panel>
       </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Panel
+          className="xl:col-span-2"
+          title="Policy & Member Growth"
+          subtitle="Volume trend · last 6 years"
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={volumeByYear} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => fmtNum(v)}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="policies" name="Policies" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="members" name="Members" stroke="var(--color-info)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+        <Panel title="3-yr Actual vs 2026 YTD" subtitle="Premium / Revenue (฿M)">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={actualVsYtd} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="period" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}M`} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => `฿${v}M`}
+              />
+              <Bar dataKey="premium" name="Full-year Actual" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="ytd" name="2026 YTD" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>3-yr avg: <span className="font-mono tabular-nums text-foreground">฿62.3M</span></span>
+            <span>YTD pace: <span className="font-mono tabular-nums text-success">+11.3% vs LY</span></span>
+          </div>
+        </Panel>
+      </div>
       <Panel title="Seasonality Trend" subtitle="Monthly revenue % of annual">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
