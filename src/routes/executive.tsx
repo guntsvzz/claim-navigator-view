@@ -128,6 +128,49 @@ const opportunities = [
   { title: "ESG-aligned Green Hospital Network", impact: "Low", effort: "Medium", category: "ESG / Compliance" },
 ];
 
+// Contract milestones (Section 02)
+const contractMilestones = [
+  { date: "01 Sep 2020", label: "Initial Contract Signed", detail: "3-year master service agreement", status: "done" as const },
+  { date: "01 Sep 2023", label: "Renewal · Term 2", detail: "Expanded to Group Health + Digital claim portal", status: "done" as const },
+  { date: "01 Jan 2026", label: "Current Term", detail: "Active — SLA 95%, 4 product lines", status: "current" as const },
+  { date: "31 Dec 2026", label: "Upcoming Renewal", detail: "Proposal due 30 Sep · target uplift +8%", status: "upcoming" as const },
+];
+
+// Policy & Member trend (Section 03)
+const volumeByYear = [
+  { year: "2021", revenue: 38.2, policies: 12_400, members: 48_600 },
+  { year: "2022", revenue: 44.5, policies: 14_100, members: 55_800 },
+  { year: "2023", revenue: 52.1, policies: 16_300, members: 63_200 },
+  { year: "2024", revenue: 61.8, policies: 18_900, members: 71_400 },
+  { year: "2025", revenue: 72.9, policies: 21_800, members: 80_900 },
+  { year: "2026", revenue: 84.3, policies: 24_600, members: 91_200 },
+];
+
+// 3-yr actual vs current-year YTD (Section 03)
+const actualVsYtd = [
+  { period: "2023", premium: 52.1, ytd: 0 },
+  { period: "2024", premium: 61.8, ytd: 0 },
+  { period: "2025", premium: 72.9, ytd: 0 },
+  { period: "2026 YTD", premium: 0, ytd: 58.4 },
+];
+
+// Churn drivers (Section 05)
+const churnDrivers = [
+  { driver: "Premium increase > 8% at renewal", weight: 82, tone: "destructive" as const },
+  { driver: "SLA breach on high-cost claims", weight: 71, tone: "destructive" as const },
+  { driver: "Slow pre-authorization turnaround", weight: 58, tone: "warning" as const },
+  { driver: "Provider network gaps (upcountry)", weight: 46, tone: "warning" as const },
+  { driver: "Limited digital self-service", weight: 34, tone: "info" as const },
+];
+
+// Competitor snapshot (Section 05)
+const competitors = [
+  { name: "This Account", price: "Baseline", service: 94, nps: 48, network: 320, us: true },
+  { name: "Competitor A (AXA-like)", price: "−4%", service: 91, nps: 42, network: 280, us: false },
+  { name: "Competitor B (Allianz-like)", price: "+2%", service: 89, nps: 39, network: 340, us: false },
+  { name: "Competitor C (Local)", price: "−7%", service: 86, nps: 31, network: 240, us: false },
+];
+
 function ExecutivePage() {
   const { view, entityId, setEntityId } = useView();
   const list = view === "insurer" ? insurers : providers;
