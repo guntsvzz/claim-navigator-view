@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -17,6 +18,7 @@ import {
   Briefcase,
   Calendar,
   CheckCircle2,
+  FileSignature,
   HandCoins,
   Heart,
   Lightbulb,
@@ -25,8 +27,10 @@ import {
   Phone,
   Receipt,
   RefreshCw,
+  Smartphone,
   Sparkles,
   Star,
+  Swords,
   Target,
   TrendingUp,
   Users,
@@ -122,6 +126,49 @@ const opportunities = [
   { title: "Group Health Cross-Sell to SME", impact: "Medium", effort: "Low", category: "New Product" },
   { title: "Wellness Program Bundle", impact: "Medium", effort: "Medium", category: "New Product" },
   { title: "ESG-aligned Green Hospital Network", impact: "Low", effort: "Medium", category: "ESG / Compliance" },
+];
+
+// Contract milestones (Section 02)
+const contractMilestones = [
+  { date: "01 Sep 2020", label: "Initial Contract Signed", detail: "3-year master service agreement", status: "done" as const },
+  { date: "01 Sep 2023", label: "Renewal · Term 2", detail: "Expanded to Group Health + Digital claim portal", status: "done" as const },
+  { date: "01 Jan 2026", label: "Current Term", detail: "Active — SLA 95%, 4 product lines", status: "current" as const },
+  { date: "31 Dec 2026", label: "Upcoming Renewal", detail: "Proposal due 30 Sep · target uplift +8%", status: "upcoming" as const },
+];
+
+// Policy & Member trend (Section 03)
+const volumeByYear = [
+  { year: "2021", revenue: 38.2, policies: 12_400, members: 48_600 },
+  { year: "2022", revenue: 44.5, policies: 14_100, members: 55_800 },
+  { year: "2023", revenue: 52.1, policies: 16_300, members: 63_200 },
+  { year: "2024", revenue: 61.8, policies: 18_900, members: 71_400 },
+  { year: "2025", revenue: 72.9, policies: 21_800, members: 80_900 },
+  { year: "2026", revenue: 84.3, policies: 24_600, members: 91_200 },
+];
+
+// 3-yr actual vs current-year YTD (Section 03)
+const actualVsYtd = [
+  { period: "2023", premium: 52.1, ytd: 0 },
+  { period: "2024", premium: 61.8, ytd: 0 },
+  { period: "2025", premium: 72.9, ytd: 0 },
+  { period: "2026 YTD", premium: 0, ytd: 58.4 },
+];
+
+// Churn drivers (Section 05)
+const churnDrivers = [
+  { driver: "Premium increase > 8% at renewal", weight: 82, tone: "destructive" as const },
+  { driver: "SLA breach on high-cost claims", weight: 71, tone: "destructive" as const },
+  { driver: "Slow pre-authorization turnaround", weight: 58, tone: "warning" as const },
+  { driver: "Provider network gaps (upcountry)", weight: 46, tone: "warning" as const },
+  { driver: "Limited digital self-service", weight: 34, tone: "info" as const },
+];
+
+// Competitor snapshot (Section 05)
+const competitors = [
+  { name: "This Account", price: "Baseline", service: 94, nps: 48, network: 320, us: true },
+  { name: "Competitor A (AXA-like)", price: "−4%", service: 91, nps: 42, network: 280, us: false },
+  { name: "Competitor B (Allianz-like)", price: "+2%", service: 89, nps: 39, network: 340, us: false },
+  { name: "Competitor C (Local)", price: "−7%", service: 86, nps: 31, network: 240, us: false },
 ];
 
 function ExecutivePage() {
@@ -259,12 +306,54 @@ function ExecutivePage() {
 
       {/* 2. Relationship / Engagement */}
       <SectionHeader index="02" title="Relationship & Engagement" subtitle="Service quality and account health" />
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard label="Service Years" value={`${profile.serviceYears} yrs`} sub="Since Sep 2020" icon={Calendar} />
         <KpiCard label="Contract Status" value={profile.contractStatus} sub={`Renews ${profile.renewalDate}`} icon={RefreshCw} tone="success" />
         <KpiCard label="SLA Met Rate" value="94.2%" sub="1,842 of 1,956 cases" icon={Target} tone="success" />
         <KpiCard label="Open Complaints" value="30" sub="MoM +3 cases" icon={AlertTriangle} tone="warning" />
+        <KpiCard label="Digital Adoption" value="78%" sub="Claims via digital channel" delta={12} icon={Smartphone} tone="info" />
       </div>
+      <Panel
+        title="Contract History"
+        subtitle="Start → current term → upcoming renewal"
+        actions={
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+            <FileSignature className="h-3 w-3" /> {contractMilestones.length} milestones
+          </span>
+        }
+      >
+        <ol className="relative ml-2 space-y-4 border-l border-border pl-6">
+          {contractMilestones.map((m) => {
+            const dot =
+              m.status === "current"
+                ? "bg-primary ring-4 ring-primary/20"
+                : m.status === "upcoming"
+                  ? "bg-background border-2 border-warning"
+                  : "bg-success";
+            const badge =
+              m.status === "current"
+                ? "bg-primary/15 text-primary"
+                : m.status === "upcoming"
+                  ? "bg-warning/15 text-warning"
+                  : "bg-success/15 text-success";
+            return (
+              <li key={m.date} className="relative">
+                <span className={cn("absolute -left-[30px] top-1.5 h-3 w-3 rounded-full", dot)} />
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">{m.date}</span>
+                    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", badge)}>
+                      {m.status}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold">{m.label}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{m.detail}</p>
+              </li>
+            );
+          })}
+        </ol>
+      </Panel>
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Issues & Complaints" subtitle="Trend MoM by category">
           <table className="w-full text-sm">
@@ -373,6 +462,63 @@ function ExecutivePage() {
           </ul>
         </Panel>
       </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Panel
+          className="xl:col-span-2"
+          title="Policy & Member Growth"
+          subtitle="Volume trend · last 6 years"
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={volumeByYear} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => fmtNum(v)}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="policies" name="Policies" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="members" name="Members" stroke="var(--color-info)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+        <Panel title="3-yr Actual vs 2026 YTD" subtitle="Premium / Revenue (฿M)">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={actualVsYtd} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="period" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}M`} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => `฿${v}M`}
+              />
+              <Bar dataKey="premium" name="Full-year Actual" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="ytd" name="2026 YTD" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>3-yr avg: <span className="font-mono tabular-nums text-foreground">฿62.3M</span></span>
+            <span>YTD pace: <span className="font-mono tabular-nums text-success">+11.3% vs LY</span></span>
+          </div>
+        </Panel>
+      </div>
       <Panel title="Seasonality Trend" subtitle="Monthly revenue % of annual">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
@@ -441,6 +587,88 @@ function ExecutivePage() {
         <KpiCard label="DSO" value="38 days" sub="vs 45 last yr" delta={-15} icon={Calendar} tone="success" />
         <KpiCard label="Overdue Rate" value="2.4%" sub="2 of 84 invoices" delta={-0.6} icon={AlertTriangle} tone="warning" />
       </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel
+          title="Churn Risk & Drivers"
+          subtitle="Weighted impact on renewal probability"
+          actions={
+            <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+              <AlertTriangle className="h-3 w-3" /> Risk index 46 / 100
+            </span>
+          }
+        >
+          <ul className="space-y-3">
+            {churnDrivers.map((d) => {
+              const barColor =
+                d.tone === "destructive"
+                  ? "var(--color-destructive)"
+                  : d.tone === "warning"
+                    ? "var(--color-warning)"
+                    : "var(--color-info)";
+              return (
+                <li key={d.driver}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span>{d.driver}</span>
+                    <span className="font-mono tabular-nums text-muted-foreground">{d.weight}</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${d.weight}%`, background: barColor }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+        <Panel
+          title="Competitor Comparison"
+          subtitle="Price & service positioning snapshot"
+          actions={
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Swords className="h-3 w-3" /> vs 3 competitors
+            </span>
+          }
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="pb-2 text-left">Player</th>
+                <th className="pb-2 text-right">Price</th>
+                <th className="pb-2 text-right">SLA %</th>
+                <th className="pb-2 text-right">NPS</th>
+                <th className="pb-2 text-right">Network</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {competitors.map((c) => (
+                <tr key={c.name} className={cn(c.us && "bg-primary/5")}>
+                  <td className="py-2.5 font-medium">
+                    {c.us ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-primary" />
+                        {c.name}
+                      </span>
+                    ) : (
+                      c.name
+                    )}
+                  </td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Positioning: premium service tier · price parity vs Competitor B · network parity mid-pack.
+          </p>
+        </Panel>
+      </div>
+
+
 
       {/* 6. Growth Strategy */}
       <SectionHeader index="06" title="Customer Growth Engines & Strategy" subtitle="Where to invest next" />
