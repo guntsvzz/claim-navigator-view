@@ -587,6 +587,88 @@ function ExecutivePage() {
         <KpiCard label="DSO" value="38 days" sub="vs 45 last yr" delta={-15} icon={Calendar} tone="success" />
         <KpiCard label="Overdue Rate" value="2.4%" sub="2 of 84 invoices" delta={-0.6} icon={AlertTriangle} tone="warning" />
       </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel
+          title="Churn Risk & Drivers"
+          subtitle="Weighted impact on renewal probability"
+          actions={
+            <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+              <AlertTriangle className="h-3 w-3" /> Risk index 46 / 100
+            </span>
+          }
+        >
+          <ul className="space-y-3">
+            {churnDrivers.map((d) => {
+              const barColor =
+                d.tone === "destructive"
+                  ? "var(--color-destructive)"
+                  : d.tone === "warning"
+                    ? "var(--color-warning)"
+                    : "var(--color-info)";
+              return (
+                <li key={d.driver}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span>{d.driver}</span>
+                    <span className="font-mono tabular-nums text-muted-foreground">{d.weight}</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${d.weight}%`, background: barColor }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+        <Panel
+          title="Competitor Comparison"
+          subtitle="Price & service positioning snapshot"
+          actions={
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Swords className="h-3 w-3" /> vs 3 competitors
+            </span>
+          }
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="pb-2 text-left">Player</th>
+                <th className="pb-2 text-right">Price</th>
+                <th className="pb-2 text-right">SLA %</th>
+                <th className="pb-2 text-right">NPS</th>
+                <th className="pb-2 text-right">Network</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {competitors.map((c) => (
+                <tr key={c.name} className={cn(c.us && "bg-primary/5")}>
+                  <td className="py-2.5 font-medium">
+                    {c.us ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-primary" />
+                        {c.name}
+                      </span>
+                    ) : (
+                      c.name
+                    )}
+                  </td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Positioning: premium service tier · price parity vs Competitor B · network parity mid-pack.
+          </p>
+        </Panel>
+      </div>
+
+
 
       {/* 6. Growth Strategy */}
       <SectionHeader index="06" title="Customer Growth Engines & Strategy" subtitle="Where to invest next" />
