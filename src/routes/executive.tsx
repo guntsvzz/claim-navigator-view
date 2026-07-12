@@ -3,7 +3,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Legend,
   Line,
   LineChart,
@@ -21,7 +20,9 @@ import {
   FileSignature,
   HandCoins,
   Heart,
+  Info,
   Lightbulb,
+  Lock,
   Mail,
   Percent,
   Phone,
@@ -34,11 +35,17 @@ import {
   Target,
   TrendingUp,
   Users,
+  XCircle,
 } from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { insurers, providers, fmtBaht, fmtNum } from "@/lib/mock-data";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Panel } from "@/components/dashboard/panel";
+import {
+  ReadinessBadge,
+  ReadinessLegend,
+  SampleBanner,
+} from "@/components/dashboard/readiness";
 import {
   Select,
   SelectContent,
@@ -90,6 +97,20 @@ const accountProfiles: Record<
   },
 };
 
+// Per-service / per-product contract renewal (LIVE — from contract records)
+const serviceRenewals: {
+  service: string;
+  status: "Active" | "Inactive";
+  expiry: string;
+}[] = [
+  { service: "Claim Management", status: "Active", expiry: "31 Dec 2026" },
+  { service: "Mobile App", status: "Active", expiry: "31 Dec 2026" },
+  { service: "Pre-Authorization", status: "Active", expiry: "30 Jun 2026" },
+  { service: "Provider Network", status: "Active", expiry: "31 Dec 2026" },
+  { service: "Telemedicine Add-on", status: "Inactive", expiry: "—" },
+];
+
+// NOTE: the figures below are sample layout values only — no confirmed data source.
 const revenueByYear = [
   { year: "2021", revenue: 38_200_000 },
   { year: "2022", revenue: 44_500_000 },
@@ -99,13 +120,6 @@ const revenueByYear = [
   { year: "2026", revenue: 84_300_000 },
 ];
 
-const productRevenueSplit = [
-  { name: "Health", value: 38, color: "var(--color-primary)" },
-  { name: "PA", value: 24, color: "var(--color-info)" },
-  { name: "Group Health", value: 22, color: "var(--color-success)" },
-  { name: "Life", value: 16, color: "var(--color-warning)" },
-];
-
 const seasonality = [
   { m: "Jan", v: 6.1 }, { m: "Feb", v: 5.8 }, { m: "Mar", v: 7.4 },
   { m: "Apr", v: 6.9 }, { m: "May", v: 7.8 }, { m: "Jun", v: 8.6 },
@@ -113,6 +127,7 @@ const seasonality = [
   { m: "Oct", v: 8.4 }, { m: "Nov", v: 7.9 }, { m: "Dec", v: 6.7 },
 ];
 
+// LIVE — from complaints/ticketing system
 const complaints = [
   { type: "Service Delay", count: 14, trend: "up" as const },
   { type: "Claim Dispute", count: 9, trend: "down" as const },
@@ -120,6 +135,7 @@ const complaints = [
   { type: "System Issue", count: 3, trend: "down" as const },
 ];
 
+// MANUAL — KAM/BD-maintained backlog of growth ideas
 const opportunities = [
   { title: "Digital Self-Service Portal", impact: "High", effort: "Medium", category: "Digital Integration" },
   { title: "Telemedicine Claim Auto-Approval", impact: "High", effort: "High", category: "Automation" },
@@ -128,7 +144,7 @@ const opportunities = [
   { title: "ESG-aligned Green Hospital Network", impact: "Low", effort: "Medium", category: "ESG / Compliance" },
 ];
 
-// Contract milestones (Section 02)
+// Contract milestones (Section 02) — LIVE, from contract records
 const contractMilestones = [
   { date: "01 Sep 2020", label: "Initial Contract Signed", detail: "3-year master service agreement", status: "done" as const },
   { date: "01 Sep 2023", label: "Renewal · Term 2", detail: "Expanded to Group Health + Digital claim portal", status: "done" as const },
@@ -136,17 +152,17 @@ const contractMilestones = [
   { date: "31 Dec 2026", label: "Upcoming Renewal", detail: "Proposal due 30 Sep · target uplift +8%", status: "upcoming" as const },
 ];
 
-// Policy & Member trend (Section 03)
+// Policy & Member trend (Section 03) — sample only, no confirmed source
 const volumeByYear = [
-  { year: "2021", revenue: 38.2, policies: 12_400, members: 48_600 },
-  { year: "2022", revenue: 44.5, policies: 14_100, members: 55_800 },
-  { year: "2023", revenue: 52.1, policies: 16_300, members: 63_200 },
-  { year: "2024", revenue: 61.8, policies: 18_900, members: 71_400 },
-  { year: "2025", revenue: 72.9, policies: 21_800, members: 80_900 },
-  { year: "2026", revenue: 84.3, policies: 24_600, members: 91_200 },
+  { year: "2021", policies: 12_400, members: 48_600 },
+  { year: "2022", policies: 14_100, members: 55_800 },
+  { year: "2023", policies: 16_300, members: 63_200 },
+  { year: "2024", policies: 18_900, members: 71_400 },
+  { year: "2025", policies: 21_800, members: 80_900 },
+  { year: "2026", policies: 24_600, members: 91_200 },
 ];
 
-// 3-yr actual vs current-year YTD (Section 03)
+// 3-yr actual vs current-year YTD (Section 03) — sample only, no confirmed source
 const actualVsYtd = [
   { period: "2023", premium: 52.1, ytd: 0 },
   { period: "2024", premium: 61.8, ytd: 0 },
@@ -154,16 +170,16 @@ const actualVsYtd = [
   { period: "2026 YTD", premium: 0, ytd: 58.4 },
 ];
 
-// Churn drivers (Section 05)
+// Churn drivers (Section 05) — estimated / illustrative, not measured
 const churnDrivers = [
-  { driver: "Premium increase > 8% at renewal", weight: 82, tone: "destructive" as const },
-  { driver: "SLA breach on high-cost claims", weight: 71, tone: "destructive" as const },
-  { driver: "Slow pre-authorization turnaround", weight: 58, tone: "warning" as const },
-  { driver: "Provider network gaps (upcountry)", weight: 46, tone: "warning" as const },
-  { driver: "Limited digital self-service", weight: 34, tone: "info" as const },
+  { driver: "Premium increase > 8% at renewal", tone: "destructive" as const },
+  { driver: "SLA breach on high-cost claims", tone: "destructive" as const },
+  { driver: "Slow pre-authorization turnaround", tone: "warning" as const },
+  { driver: "Provider network gaps (upcountry)", tone: "warning" as const },
+  { driver: "Limited digital self-service", tone: "info" as const },
 ];
 
-// Competitor snapshot (Section 05)
+// Competitor snapshot (Section 05) — illustrative only, NOT from internal data
 const competitors = [
   { name: "This Account", price: "Baseline", service: 94, nps: 48, network: 320, us: true },
   { name: "Competitor A (AXA-like)", price: "−4%", service: 91, nps: 42, network: 280, us: false },
@@ -198,6 +214,9 @@ function ExecutivePage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" /> Read-only
+            </span>
             <div className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               <Select value={entityId} onValueChange={setEntityId}>
@@ -225,22 +244,37 @@ function ExecutivePage() {
             </div>
           </div>
         </div>
+
+        {/* Honesty note + readiness legend */}
+        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4">
+          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-warning">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Metrics without a confirmed data source are shown as <strong>pending</strong> and must not be used for decisions yet.
+            </span>
+          </div>
+          <ReadinessLegend />
+        </div>
       </section>
 
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Annual Revenue" value={`฿${fmtBaht(84_300_000)}`} sub="2026 YTD" delta={15.6} icon={Banknote} tone="success" />
-        <KpiCard label="Gross Margin" value="38.4%" sub="vs 35.1% LY" delta={3.3} icon={Percent} tone="success" />
-        <KpiCard label="Loss Ratio" value="62.8%" sub="Target ≤ 65%" delta={-1.4} icon={Receipt} tone="info" />
-        <KpiCard label="SLA Performance" value="94.2%" sub="Met / Total cases" delta={2.1} icon={CheckCircle2} tone="success" />
-        <KpiCard label="NPS Score" value="+48" sub="CSAT 4.3 / 5" delta={6} icon={Heart} tone="success" />
-        <KpiCard label="Renewal Probability" value="92%" sub="Contract expires Dec 2026" delta={4} icon={RefreshCw} tone="warning" />
+        <KpiCard label="Annual Revenue" value="—" icon={Banknote} readiness="none" />
+        <KpiCard label="Gross Margin" value="—" icon={Percent} readiness="none" />
+        <KpiCard label="Loss Ratio" value="—" icon={Receipt} readiness="none" />
+        <KpiCard label="SLA Performance" value="94.2%" sub="Met / Total cases" delta={2.1} icon={CheckCircle2} tone="success" readiness="live" />
+        <KpiCard label="NPS Score" value="—" icon={Heart} readiness="none" />
+        <KpiCard label="Renewal Probability" value="—" icon={RefreshCw} readiness="none" />
       </div>
 
       {/* 1. Account Profile */}
       <SectionHeader index="01" title="Account Profile" subtitle="Who they are, what they buy from us" />
       <div className="grid gap-4 xl:grid-cols-3">
-        <Panel title="Product / Business Lines" subtitle="Lines of business active with this account">
+        <Panel
+          title="Product / Business Lines"
+          subtitle="Lines of business active with this account"
+          actions={<ReadinessBadge state="manual" />}
+        >
           <div className="flex flex-wrap gap-2">
             {profile.productLines.map((p) => (
               <span key={p} className="rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
@@ -280,9 +314,12 @@ function ExecutivePage() {
           title="Key Contacts"
           subtitle="Primary stakeholders for engagement"
           actions={
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Users className="h-3 w-3" /> {profile.contacts.length} contacts
-            </span>
+            <>
+              <ReadinessBadge state="manual" />
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Users className="h-3 w-3" /> {profile.contacts.length} contacts
+              </span>
+            </>
           }
         >
           <div className="grid gap-3 md:grid-cols-3">
@@ -307,19 +344,22 @@ function ExecutivePage() {
       {/* 2. Relationship / Engagement */}
       <SectionHeader index="02" title="Relationship & Engagement" subtitle="Service quality and account health" />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <KpiCard label="Service Years" value={`${profile.serviceYears} yrs`} sub="Since Sep 2020" icon={Calendar} />
-        <KpiCard label="Contract Status" value={profile.contractStatus} sub={`Renews ${profile.renewalDate}`} icon={RefreshCw} tone="success" />
-        <KpiCard label="SLA Met Rate" value="94.2%" sub="1,842 of 1,956 cases" icon={Target} tone="success" />
-        <KpiCard label="Open Complaints" value="30" sub="MoM +3 cases" icon={AlertTriangle} tone="warning" />
-        <KpiCard label="Digital Adoption" value="78%" sub="Claims via digital channel" delta={12} icon={Smartphone} tone="info" />
+        <KpiCard label="Service Years" value={`${profile.serviceYears} yrs`} sub="Since Sep 2020" icon={Calendar} readiness="live" />
+        <KpiCard label="Contract Status" value={profile.contractStatus} sub={`Renews ${profile.renewalDate}`} icon={RefreshCw} tone="success" readiness="live" />
+        <KpiCard label="SLA Met Rate" value="94.2%" sub="1,842 of 1,956 cases" icon={Target} tone="success" readiness="live" />
+        <KpiCard label="Open Complaints" value="30" sub="MoM +3 cases" icon={AlertTriangle} tone="warning" readiness="live" />
+        <KpiCard label="Digital Adoption" value="—" icon={Smartphone} readiness="none" />
       </div>
       <Panel
         title="Contract History"
         subtitle="Start → current term → upcoming renewal"
         actions={
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <FileSignature className="h-3 w-3" /> {contractMilestones.length} milestones
-          </span>
+          <>
+            <ReadinessBadge state="live" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <FileSignature className="h-3 w-3" /> {contractMilestones.length} milestones
+            </span>
+          </>
         }
       >
         <ol className="relative ml-2 space-y-4 border-l border-border pl-6">
@@ -354,8 +394,55 @@ function ExecutivePage() {
           })}
         </ol>
       </Panel>
+
+      {/* Per-service contract renewal */}
+      <Panel
+        title="Contract Renewal by Service"
+        subtitle="Each product / service with its own status and expiry"
+        actions={<ReadinessBadge state="live" />}
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="pb-2 text-left">Service / Product</th>
+              <th className="pb-2 text-right">Status</th>
+              <th className="pb-2 text-right">Expiry</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {serviceRenewals.map((r) => (
+              <tr key={r.service}>
+                <td className="py-2.5 font-medium">{r.service}</td>
+                <td className="py-2.5 text-right">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                      r.status === "Active"
+                        ? "border-success/30 bg-success/15 text-success"
+                        : "border-border bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {r.status === "Active" ? (
+                      <CheckCircle2 className="h-3 w-3" />
+                    ) : (
+                      <XCircle className="h-3 w-3" />
+                    )}
+                    {r.status}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right font-mono tabular-nums text-muted-foreground">{r.expiry}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Issues & Complaints" subtitle="Trend MoM by category">
+        <Panel
+          title="Issues & Complaints"
+          subtitle="Trend MoM by category"
+          actions={<ReadinessBadge state="live" />}
+        >
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -386,7 +473,11 @@ function ExecutivePage() {
             </tbody>
           </table>
         </Panel>
-        <Panel title="Claim Analysis Highlights" subtitle="Population utilization & top conditions">
+        <Panel
+          title="Claim Analysis Highlights"
+          subtitle="Population utilization & top conditions"
+          actions={<ReadinessBadge state="live" />}
+        >
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md border border-border bg-background p-3">
               <div className="text-[11px] uppercase text-muted-foreground">OPD / IPD Split</div>
@@ -414,8 +505,13 @@ function ExecutivePage() {
 
       {/* 3. Business Volume / Revenue */}
       <SectionHeader index="03" title="Business Volume & Revenue" subtitle="Growth trajectory and product mix" />
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Panel className="xl:col-span-2" title="Revenue YoY" subtitle="CAGR 17.2% · last 6 years">
+      <Panel
+        title="Revenue YoY"
+        subtitle="Annual revenue trend · CAGR / YoY growth"
+        actions={<ReadinessBadge state="none" />}
+      >
+        <SampleBanner />
+        <div className="opacity-60">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={revenueByYear} margin={{ left: -10, right: 8, top: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -434,189 +530,183 @@ function ExecutivePage() {
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(v: number) => `฿${fmtBaht(v)}`}
+                formatter={(v: number) => [`฿${fmtBaht(v)} (sample)`, "Revenue"]}
               />
-              <Bar dataKey="revenue" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="revenue" fill="var(--color-muted-foreground)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Panel>
-        <Panel title="Product Revenue Mix" subtitle="Share by line">
-          <ul className="space-y-3">
-            {productRevenueSplit.map((p) => (
-              <li key={p.name}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-sm" style={{ background: p.color }} />
-                    {p.name}
-                  </span>
-                  <span className="font-mono tabular-nums text-muted-foreground">{p.value}%</span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${p.value * 2.5}%`, background: p.color }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
+        </div>
+      </Panel>
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel
           className="xl:col-span-2"
           title="Policy & Member Growth"
           subtitle="Volume trend · last 6 years"
+          actions={<ReadinessBadge state="none" />}
         >
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={volumeByYear} margin={{ left: -10, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis
-                stroke="var(--color-muted-foreground)"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-popover)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                formatter={(v: number) => fmtNum(v)}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="policies" name="Policies" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="members" name="Members" stroke="var(--color-info)" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <SampleBanner />
+          <div className="opacity-60">
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={volumeByYear} margin={{ left: -10, right: 8, top: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-popover)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number) => `${fmtNum(v)} (sample)`}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="policies" name="Policies" stroke="var(--color-muted-foreground)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="members" name="Members" stroke="var(--color-muted-foreground)" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </Panel>
-        <Panel title="3-yr Actual vs 2026 YTD" subtitle="Premium / Revenue (฿M)">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={actualVsYtd} margin={{ left: -10, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="period" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}M`} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-popover)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                formatter={(v: number) => `฿${v}M`}
-              />
-              <Bar dataKey="premium" name="Full-year Actual" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="ytd" name="2026 YTD" fill="var(--color-warning)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>3-yr avg: <span className="font-mono tabular-nums text-foreground">฿62.3M</span></span>
-            <span>YTD pace: <span className="font-mono tabular-nums text-success">+11.3% vs LY</span></span>
+        <Panel
+          title="3-yr Actual vs 2026 YTD"
+          subtitle="Premium / Revenue (฿M)"
+          actions={<ReadinessBadge state="none" />}
+        >
+          <SampleBanner />
+          <div className="opacity-60">
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={actualVsYtd} margin={{ left: -10, right: 8, top: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="period" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}M`} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-popover)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(v: number) => `฿${v}M (sample)`}
+                />
+                <Bar dataKey="premium" name="Full-year Actual" fill="var(--color-muted-foreground)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="ytd" name="2026 YTD" fill="var(--color-muted-foreground)" fillOpacity={0.6} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </Panel>
       </div>
-      <Panel title="Seasonality Trend" subtitle="Monthly revenue % of annual">
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-            <XAxis dataKey="m" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-            <Tooltip
-              contentStyle={{
-                background: "var(--color-popover)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              formatter={(v: number) => `${v}%`}
-            />
-            <Line type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
+      <Panel
+        title="Seasonality Trend"
+        subtitle="Monthly revenue % of annual"
+        actions={<ReadinessBadge state="none" />}
+      >
+        <SampleBanner />
+        <div className="opacity-60">
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="m" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => `${v}% (sample)`}
+              />
+              <Line type="monotone" dataKey="v" stroke="var(--color-muted-foreground)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </Panel>
 
       {/* 4. Profitability */}
       <SectionHeader index="04" title="Profitability Analysis" subtitle="Margins, cost-to-serve and loss" />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Gross Margin" value="38.4%" sub="(Rev − Direct Cost) / Rev" icon={TrendingUp} tone="success" />
-        <KpiCard label="Net Margin" value="22.1%" sub="After total cost" icon={Percent} tone="success" />
-        <KpiCard label="Cost to Serve" value={`฿${fmtBaht(34_200_000)}`} sub="Ops + Claim + Tech + HR" icon={HandCoins} tone="info" />
-        <KpiCard label="Loss Ratio" value="62.8%" sub="Total claims / Premium" icon={Receipt} tone="warning" />
+        <KpiCard label="Gross Margin" value="—" icon={TrendingUp} readiness="none" />
+        <KpiCard label="Net Margin" value="—" icon={Percent} readiness="none" />
+        <KpiCard label="Cost to Serve" value="—" icon={HandCoins} readiness="none" />
+        <KpiCard label="Loss Ratio" value="—" icon={Receipt} readiness="none" />
       </div>
-      <Panel title="Contribution by Product Line" subtitle="Revenue share vs margin">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="pb-2 text-left">Product Line</th>
-              <th className="pb-2 text-right">Revenue</th>
-              <th className="pb-2 text-right">Share</th>
-              <th className="pb-2 text-right">Gross Margin</th>
-              <th className="pb-2 text-right">Loss Ratio</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {[
-              { name: "Health", rev: 32_000_000, share: 38, gm: 41, lr: 60 },
-              { name: "PA", rev: 20_200_000, share: 24, gm: 44, lr: 55 },
-              { name: "Group Health", rev: 18_500_000, share: 22, gm: 33, lr: 68 },
-              { name: "Life", rev: 13_600_000, share: 16, gm: 36, lr: 64 },
-            ].map((r) => (
-              <tr key={r.name}>
-                <td className="py-2.5 font-medium">{r.name}</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">฿{fmtBaht(r.rev)}</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">{r.share}%</td>
-                <td className="py-2.5 text-right font-mono tabular-nums text-success">{r.gm}%</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">{r.lr}%</td>
+      <Panel
+        title="Contribution by Product Line"
+        subtitle="Revenue + margin per line (distinct from a simple revenue-share view)"
+        actions={<ReadinessBadge state="none" />}
+      >
+        <SampleBanner />
+        <div className="opacity-60">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="pb-2 text-left">Product Line</th>
+                <th className="pb-2 text-right">Revenue</th>
+                <th className="pb-2 text-right">Share</th>
+                <th className="pb-2 text-right">Gross Margin</th>
+                <th className="pb-2 text-right">Loss Ratio</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {[
+                { name: "Health", rev: 32_000_000, share: 38, gm: 41, lr: 60 },
+                { name: "PA", rev: 20_200_000, share: 24, gm: 44, lr: 55 },
+                { name: "Group Health", rev: 18_500_000, share: 22, gm: 33, lr: 68 },
+                { name: "Life", rev: 13_600_000, share: 16, gm: 36, lr: 64 },
+              ].map((r) => (
+                <tr key={r.name}>
+                  <td className="py-2.5 font-medium">{r.name}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">฿{fmtBaht(r.rev)}</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{r.share}%</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{r.gm}%</td>
+                  <td className="py-2.5 text-right font-mono tabular-nums">{r.lr}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Panel>
 
       {/* 5. Customer Behaviour */}
       <SectionHeader index="05" title="Customer Behaviour" subtitle="Loyalty, satisfaction, financial discipline" />
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Renewal Rate" value="96%" sub="Last 12 months" delta={2} icon={RefreshCw} tone="success" />
-        <KpiCard label="Upsell Potential" value="3 lines" sub="of 7 available" icon={Sparkles} tone="info" />
-        <KpiCard label="Price Sensitivity" value="Low" sub="ρ = −0.18" icon={Target} />
-        <KpiCard label="CSAT / NPS" value="4.3 / +48" sub="Q1 2026" delta={5.4} icon={Star} tone="success" />
-        <KpiCard label="DSO" value="38 days" sub="vs 45 last yr" delta={-15} icon={Calendar} tone="success" />
-        <KpiCard label="Overdue Rate" value="2.4%" sub="2 of 84 invoices" delta={-0.6} icon={AlertTriangle} tone="warning" />
+        <KpiCard label="Renewal Rate" value="96%" sub="Last 12 months" delta={2} icon={RefreshCw} tone="success" readiness="manual" />
+        <KpiCard label="Upsell Potential" value="3 lines" sub="of 7 available" icon={Sparkles} tone="info" readiness="manual" />
+        <KpiCard label="Price Sensitivity" value="Low" sub="Estimated / illustrative" icon={Target} readiness="none" />
+        <KpiCard label="CSAT / NPS" value="—" icon={Star} readiness="none" />
+        <KpiCard label="DSO" value="—" icon={Calendar} readiness="none" />
+        <KpiCard label="Overdue Rate" value="—" icon={AlertTriangle} readiness="none" />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel
           title="Churn Risk & Drivers"
-          subtitle="Weighted impact on renewal probability"
-          actions={
-            <span className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-              <AlertTriangle className="h-3 w-3" /> Risk index 46 / 100
-            </span>
-          }
+          subtitle="Estimated / illustrative — not a measured index"
+          actions={<ReadinessBadge state="none" />}
         >
-          <ul className="space-y-3">
+          <SampleBanner label="Estimated / illustrative — drivers reflect KAM judgement, not a measured risk score." />
+          <ul className="space-y-2.5">
             {churnDrivers.map((d) => {
-              const barColor =
+              const dotColor =
                 d.tone === "destructive"
-                  ? "var(--color-destructive)"
+                  ? "bg-destructive"
                   : d.tone === "warning"
-                    ? "var(--color-warning)"
-                    : "var(--color-info)";
+                    ? "bg-warning"
+                    : "bg-info";
+              const label =
+                d.tone === "destructive" ? "High" : d.tone === "warning" ? "Medium" : "Low";
               return (
-                <li key={d.driver}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span>{d.driver}</span>
-                    <span className="font-mono tabular-nums text-muted-foreground">{d.weight}</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${d.weight}%`, background: barColor }}
-                    />
-                  </div>
+                <li key={d.driver} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className={cn("h-2 w-2 rounded-full", dotColor)} />
+                    {d.driver}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-muted-foreground">{label} risk</span>
                 </li>
               );
             })}
@@ -626,49 +716,53 @@ function ExecutivePage() {
           title="Competitor Comparison"
           subtitle="Price & service positioning snapshot"
           actions={
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Swords className="h-3 w-3" /> vs 3 competitors
-            </span>
+            <>
+              <ReadinessBadge state="none" />
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Swords className="h-3 w-3" /> vs 3 competitors
+              </span>
+            </>
           }
         >
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="pb-2 text-left">Player</th>
-                <th className="pb-2 text-right">Price</th>
-                <th className="pb-2 text-right">SLA %</th>
-                <th className="pb-2 text-right">NPS</th>
-                <th className="pb-2 text-right">Network</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {competitors.map((c) => (
-                <tr key={c.name} className={cn(c.us && "bg-primary/5")}>
-                  <td className="py-2.5 font-medium">
-                    {c.us ? (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-primary" />
-                        {c.name}
-                      </span>
-                    ) : (
-                      c.name
-                    )}
-                  </td>
-                  <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
-                  <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
-                  <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
-                  <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
+          <SampleBanner
+            tone="illustrative"
+            label="Illustrative — not from internal data. BVTPA has no internal source for competitors' SLA, NPS, or network."
+          />
+          <div className="opacity-60">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="pb-2 text-left">Player</th>
+                  <th className="pb-2 text-right">Price</th>
+                  <th className="pb-2 text-right">SLA %</th>
+                  <th className="pb-2 text-right">NPS</th>
+                  <th className="pb-2 text-right">Network</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            Positioning: premium service tier · price parity vs Competitor B · network parity mid-pack.
-          </p>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {competitors.map((c) => (
+                  <tr key={c.name} className={cn(c.us && "bg-muted/40")}>
+                    <td className="py-2.5 font-medium">
+                      {c.us ? (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-muted-foreground" />
+                          {c.name}
+                        </span>
+                      ) : (
+                        c.name
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
+                    <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
+                    <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
+                    <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Panel>
       </div>
-
-
 
       {/* 6. Growth Strategy */}
       <SectionHeader index="06" title="Customer Growth Engines & Strategy" subtitle="Where to invest next" />
@@ -676,11 +770,15 @@ function ExecutivePage() {
         title="Opportunity Backlog"
         subtitle="Ideas to support customer direction and growth"
         actions={
-          <span className="inline-flex items-center gap-1 text-[11px] text-primary">
-            <Lightbulb className="h-3 w-3" /> {opportunities.length} initiatives
-          </span>
+          <>
+            <ReadinessBadge state="none" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+              <Lightbulb className="h-3 w-3" /> {opportunities.length} initiatives
+            </span>
+          </>
         }
       >
+        <SampleBanner label="No confirmed data source — growth engines are qualitative ideas, not scored from data yet." />
         <table className="w-full text-sm">
           <thead>
             <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
