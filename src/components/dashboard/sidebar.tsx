@@ -9,6 +9,7 @@ import {
   Share2,
   ShieldAlert,
   ListTodo,
+  BellRing,
   UsersRound,
   Workflow,
   Settings,
@@ -24,6 +25,7 @@ const primaryNav = [
   { key: "social", label: "Social Listener", icon: Share2, to: "/social-listener" },
   { key: "fraud", label: "Fraud Analysis", icon: ShieldAlert, to: "/fraud-analysis" },
   { key: "task", label: "Task", icon: ListTodo, to: "/task" },
+  { key: "kpi", label: "KPI & Alerts", icon: BellRing, to: "/kpi-alerts" },
 ] as const;
 
 const secondaryNav = [

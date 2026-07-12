@@ -9,14 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TaskRouteImport } from './routes/task'
 import { Route as SocialListenerRouteImport } from './routes/social-listener'
+import { Route as KpiAlertsRouteImport } from './routes/kpi-alerts'
 import { Route as FraudAnalysisRouteImport } from './routes/fraud-analysis'
 import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TaskRoute = TaskRouteImport.update({
+  id: '/task',
+  path: '/task',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SocialListenerRoute = SocialListenerRouteImport.update({
   id: '/social-listener',
   path: '/social-listener',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KpiAlertsRoute = KpiAlertsRouteImport.update({
+  id: '/kpi-alerts',
+  path: '/kpi-alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FraudAnalysisRoute = FraudAnalysisRouteImport.update({
@@ -39,43 +51,84 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
+  '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
+  '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
+  '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/executive' | '/fraud-analysis' | '/social-listener'
+  fullPaths:
+    | '/'
+    | '/executive'
+    | '/fraud-analysis'
+    | '/kpi-alerts'
+    | '/social-listener'
+    | '/task'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/executive' | '/fraud-analysis' | '/social-listener'
-  id: '__root__' | '/' | '/executive' | '/fraud-analysis' | '/social-listener'
+  to:
+    | '/'
+    | '/executive'
+    | '/fraud-analysis'
+    | '/kpi-alerts'
+    | '/social-listener'
+    | '/task'
+  id:
+    | '__root__'
+    | '/'
+    | '/executive'
+    | '/fraud-analysis'
+    | '/kpi-alerts'
+    | '/social-listener'
+    | '/task'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutiveRoute: typeof ExecutiveRoute
   FraudAnalysisRoute: typeof FraudAnalysisRoute
+  KpiAlertsRoute: typeof KpiAlertsRoute
   SocialListenerRoute: typeof SocialListenerRoute
+  TaskRoute: typeof TaskRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/task': {
+      id: '/task'
+      path: '/task'
+      fullPath: '/task'
+      preLoaderRoute: typeof TaskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/social-listener': {
       id: '/social-listener'
       path: '/social-listener'
       fullPath: '/social-listener'
       preLoaderRoute: typeof SocialListenerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kpi-alerts': {
+      id: '/kpi-alerts'
+      path: '/kpi-alerts'
+      fullPath: '/kpi-alerts'
+      preLoaderRoute: typeof KpiAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fraud-analysis': {
@@ -106,8 +159,20 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutiveRoute: ExecutiveRoute,
   FraudAnalysisRoute: FraudAnalysisRoute,
+  KpiAlertsRoute: KpiAlertsRoute,
   SocialListenerRoute: SocialListenerRoute,
+  TaskRoute: TaskRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
