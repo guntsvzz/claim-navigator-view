@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SocialListenerRouteImport } from './routes/social-listener'
+import { Route as FraudAnalysisRouteImport } from './routes/fraud-analysis'
 import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SocialListenerRoute = SocialListenerRouteImport.update({
   id: '/social-listener',
   path: '/social-listener',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FraudAnalysisRoute = FraudAnalysisRouteImport.update({
+  id: '/fraud-analysis',
+  path: '/fraud-analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExecutiveRoute = ExecutiveRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/fraud-analysis': typeof FraudAnalysisRoute
   '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/fraud-analysis': typeof FraudAnalysisRoute
   '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
+  '/fraud-analysis': typeof FraudAnalysisRoute
   '/social-listener': typeof SocialListenerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/executive' | '/social-listener'
+  fullPaths: '/' | '/executive' | '/fraud-analysis' | '/social-listener'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/executive' | '/social-listener'
-  id: '__root__' | '/' | '/executive' | '/social-listener'
+  to: '/' | '/executive' | '/fraud-analysis' | '/social-listener'
+  id: '__root__' | '/' | '/executive' | '/fraud-analysis' | '/social-listener'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutiveRoute: typeof ExecutiveRoute
+  FraudAnalysisRoute: typeof FraudAnalysisRoute
   SocialListenerRoute: typeof SocialListenerRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/social-listener'
       fullPath: '/social-listener'
       preLoaderRoute: typeof SocialListenerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fraud-analysis': {
+      id: '/fraud-analysis'
+      path: '/fraud-analysis'
+      fullPath: '/fraud-analysis'
+      preLoaderRoute: typeof FraudAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/executive': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutiveRoute: ExecutiveRoute,
+  FraudAnalysisRoute: FraudAnalysisRoute,
   SocialListenerRoute: SocialListenerRoute,
 }
 export const routeTree = rootRouteImport
