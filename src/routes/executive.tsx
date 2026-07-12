@@ -2,33 +2,43 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import {
   AlertTriangle,
+  Banknote,
   Briefcase,
   Calendar,
   CheckCircle2,
   CreditCard,
   FileSignature,
+  HandCoins,
+  Heart,
   Lock,
   Mail,
   MessageSquare,
+  Percent,
   Phone,
+  Receipt,
   RefreshCw,
+  Smartphone,
   Sparkles,
   Star,
+  Swords,
   Target,
   TrendingUp,
   Users,
   XCircle,
 } from "lucide-react";
 import { useView } from "@/lib/view-store";
-import { insurers, providers } from "@/lib/mock-data";
+import { insurers, providers, fmtBaht, fmtNum } from "@/lib/mock-data";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Panel } from "@/components/dashboard/panel";
 import {
@@ -113,6 +123,47 @@ const contractMilestones = [
   { date: "01 Sep 2023", label: "Renewal · Term 2", detail: "Expanded to Group Health + Digital claim portal", status: "done" as const },
   { date: "01 Jan 2026", label: "Current Term", detail: "Active — SLA 95%, 4 product lines", status: "current" as const },
   { date: "31 Dec 2026", label: "Upcoming Renewal", detail: "Proposal due 30 Sep · target uplift +8%", status: "upcoming" as const },
+];
+
+// Section 03 — Revenue & volume (SAMPLE — no confirmed source)
+const revenueByYear = [
+  { year: "2021", revenue: 38_200_000 },
+  { year: "2022", revenue: 44_500_000 },
+  { year: "2023", revenue: 52_100_000 },
+  { year: "2024", revenue: 61_800_000 },
+  { year: "2025", revenue: 72_900_000 },
+  { year: "2026", revenue: 84_300_000 },
+];
+
+const volumeByYear = [
+  { year: "2021", policies: 12_400, members: 48_600 },
+  { year: "2022", policies: 14_100, members: 55_800 },
+  { year: "2023", policies: 16_300, members: 63_200 },
+  { year: "2024", policies: 18_900, members: 71_400 },
+  { year: "2025", policies: 21_800, members: 80_900 },
+  { year: "2026", policies: 24_600, members: 91_200 },
+];
+
+const actualVsYtd = [
+  { period: "2023", premium: 52.1, ytd: 0 },
+  { period: "2024", premium: 61.8, ytd: 0 },
+  { period: "2025", premium: 72.9, ytd: 0 },
+  { period: "2026 YTD", premium: 0, ytd: 58.4 },
+];
+
+const seasonality = [
+  { m: "Jan", v: 6.1 }, { m: "Feb", v: 5.8 }, { m: "Mar", v: 7.4 },
+  { m: "Apr", v: 6.9 }, { m: "May", v: 7.8 }, { m: "Jun", v: 8.6 },
+  { m: "Jul", v: 9.4 }, { m: "Aug", v: 10.2 }, { m: "Sep", v: 9.1 },
+  { m: "Oct", v: 8.4 }, { m: "Nov", v: 7.9 }, { m: "Dec", v: 6.7 },
+];
+
+// Section 05 — Financial discipline (SAMPLE — pending Finance/survey data)
+const competitors = [
+  { name: "This Account", price: "Baseline", service: 94, nps: 48, network: 320, us: true },
+  { name: "Competitor A (AXA-like)", price: "−4%", service: 91, nps: 42, network: 280, us: false },
+  { name: "Competitor B (Allianz-like)", price: "+2%", service: 89, nps: 39, network: 340, us: false },
+  { name: "Competitor C (Local)", price: "−7%", service: 86, nps: 31, network: 240, us: false },
 ];
 
 // Section 05 — Renewal histogram (MANUAL · BD+KAM)
@@ -266,15 +317,25 @@ function ExecutivePage() {
           </div>
         </div>
 
-        {/* Readiness legend */}
-        <div className="mt-4 border-t border-border pt-4">
+        {/* Page-level note + readiness legend */}
+        <div className="mt-4 border-t border-border pt-4 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Some figures are sample data for demonstration — look for the{" "}
+            <span className="inline-flex items-center gap-0.5 font-semibold">Sample</span>{" "}
+            badge.
+          </p>
           <ReadinessLegend />
         </div>
       </section>
 
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <KpiCard label="Annual Revenue" value="฿84.3M" sub="FY 2026 estimate" delta={15.6} icon={Banknote} tone="success" readiness="sample" />
+        <KpiCard label="Gross Margin" value="41%" sub="Revenue – claims cost" delta={1.2} icon={Percent} tone="success" readiness="sample" />
+        <KpiCard label="Loss Ratio" value="59%" sub="Claims / Premium" delta={-0.8} icon={Receipt} readiness="sample" />
         <KpiCard label="SLA Performance" value="94.2%" sub="Met / Total cases" delta={2.1} icon={CheckCircle2} tone="success" readiness="live" />
+        <KpiCard label="NPS Score" value="+48" sub="Last survey · Q4 2025" delta={3} icon={Heart} tone="success" readiness="sample" />
+        <KpiCard label="Renewal Probability" value="92%" sub="Model estimate" delta={1} icon={RefreshCw} tone="success" readiness="sample" />
       </div>
 
       {/* 1. Account Profile */}
@@ -358,6 +419,7 @@ function ExecutivePage() {
         <KpiCard label="Contract Status" value={profile.contractStatus} sub={`Renews ${profile.renewalDate}`} icon={RefreshCw} tone="success" readiness="live" />
         <KpiCard label="SLA Met Rate" value="94.2%" sub="1,842 of 1,956 cases" icon={Target} tone="success" readiness="live" />
         <KpiCard label="Open Complaints" value="30" sub="MoM +3 cases" icon={AlertTriangle} tone="warning" readiness="live" />
+        <KpiCard label="Digital Adoption" value="74%" sub="Mobile app active users" delta={6} icon={Smartphone} tone="info" readiness="sample" />
       </div>
       <Panel
         title="Contract History"
@@ -513,6 +575,135 @@ function ExecutivePage() {
       </div>
 
 
+      {/* 3. Business Volume / Revenue */}
+      <SectionHeader index="03" title="Business Volume & Revenue" subtitle="Growth trajectory and product mix" />
+      <Panel
+        title="Revenue YoY"
+        subtitle="Annual revenue trend — CAGR / YoY growth"
+        actions={<ReadinessBadge state="sample" />}
+      >
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={revenueByYear} margin={{ left: -10, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis
+              stroke="var(--color-muted-foreground)"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `฿${fmtBaht(v)}`}
+            />
+            <Tooltip
+              contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+              formatter={(v: number) => [`฿${fmtBaht(v)}`, "Revenue"]}
+            />
+            <Bar dataKey="revenue" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Panel>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Panel
+          className="xl:col-span-2"
+          title="Policy & Member Growth"
+          subtitle="Volume trend · last 6 years"
+          actions={<ReadinessBadge state="sample" />}
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={volumeByYear} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${fmtBaht(v)}`} />
+              <Tooltip
+                contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => fmtNum(v)}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="policies" name="Policies" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="members" name="Members" stroke="var(--color-info)" strokeWidth={2} strokeDasharray="4 4" dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Panel>
+        <Panel
+          title="3-yr Actual vs 2026 YTD"
+          subtitle="Premium / Revenue (฿M)"
+          actions={<ReadinessBadge state="sample" />}
+        >
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={actualVsYtd} margin={{ left: -10, right: 8, top: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="period" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}M`} />
+              <Tooltip
+                contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => `฿${v}M`}
+              />
+              <Bar dataKey="premium" name="Full-year Actual" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="ytd" name="2026 YTD" fill="var(--color-info)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
+      </div>
+      <Panel
+        title="Seasonality Trend"
+        subtitle="Monthly revenue % of annual"
+        actions={<ReadinessBadge state="sample" />}
+      >
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="m" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+            <Tooltip
+              contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+              formatter={(v: number) => `${v}%`}
+            />
+            <Line type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </Panel>
+
+      {/* 4. Profitability */}
+      <SectionHeader index="04" title="Profitability Analysis" subtitle="Margins, cost-to-serve and loss" />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Gross Margin" value="41%" sub="Revenue – claims cost" delta={1.2} icon={TrendingUp} tone="success" readiness="sample" />
+        <KpiCard label="Net Margin" value="18%" sub="After all expenses" delta={0.4} icon={Percent} readiness="sample" />
+        <KpiCard label="Cost to Serve" value="฿2,840" sub="Per policy / year" delta={-1.1} icon={HandCoins} tone="success" readiness="sample" />
+        <KpiCard label="Loss Ratio" value="59%" sub="Claims / Premium" delta={-0.8} icon={Receipt} readiness="sample" />
+      </div>
+      <Panel
+        title="Contribution by Product Line"
+        subtitle="Revenue + margin per line"
+        actions={<ReadinessBadge state="sample" />}
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="pb-2 text-left">Product Line</th>
+              <th className="pb-2 text-right">Revenue</th>
+              <th className="pb-2 text-right">Share</th>
+              <th className="pb-2 text-right">Gross Margin</th>
+              <th className="pb-2 text-right">Loss Ratio</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {[
+              { name: "Health", rev: 32_000_000, share: 38, gm: 41, lr: 60 },
+              { name: "PA", rev: 20_200_000, share: 24, gm: 44, lr: 55 },
+              { name: "Group Health", rev: 18_500_000, share: 22, gm: 33, lr: 68 },
+              { name: "Life", rev: 13_600_000, share: 16, gm: 36, lr: 64 },
+            ].map((r) => (
+              <tr key={r.name}>
+                <td className="py-2.5 font-medium">{r.name}</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">฿{fmtBaht(r.rev)}</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{r.share}%</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{r.gm}%</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{r.lr}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
+
       {/* 5. Customer Behaviour */}
       <SectionHeader index="05" title="Customer Behaviour" subtitle="Loyalty, satisfaction, financial discipline" />
 
@@ -628,17 +819,60 @@ function ExecutivePage() {
         </p>
       </Panel>
 
-      {/* Financial discipline & satisfaction — pending */}
-      <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Financial discipline &amp; satisfaction</span>
-          <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            No source yet
-          </span>
-          <span>—</span>
-          <span>Price Sensitivity, CSAT / NPS, DSO, Overdue Rate, and Credit Risk are pending Finance / survey data.</span>
-        </div>
+      {/* Financial discipline & satisfaction — sample KPI cards */}
+      <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <KpiCard label="Price Sensitivity" value="Low" sub="Estimated elasticity" icon={Target} readiness="sample" />
+        <KpiCard label="CSAT / NPS" value="+48" sub="Q4 2025 survey" delta={3} icon={Heart} tone="success" readiness="sample" />
+        <KpiCard label="DSO" value="22 days" sub="Days sales outstanding" delta={-2} icon={Calendar} tone="success" readiness="sample" />
+        <KpiCard label="Overdue Rate" value="3.2%" sub="Invoices past 30 days" icon={CreditCard} readiness="sample" />
+        <KpiCard label="Credit Risk" value="Low" sub="AA internal rating" icon={CheckCircle2} tone="success" readiness="sample" />
       </div>
+
+      {/* Competitor Comparison — sample */}
+      <Panel
+        title="Competitor Comparison"
+        subtitle="Price & service positioning snapshot"
+        actions={
+          <>
+            <ReadinessBadge state="sample" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Swords className="h-3 w-3" /> vs 3 competitors
+            </span>
+          </>
+        }
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="pb-2 text-left">Player</th>
+              <th className="pb-2 text-right">Price</th>
+              <th className="pb-2 text-right">SLA %</th>
+              <th className="pb-2 text-right">NPS</th>
+              <th className="pb-2 text-right">Network</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {competitors.map((c) => (
+              <tr key={c.name} className={cn(c.us && "bg-muted/40")}>
+                <td className="py-2.5 font-medium">
+                  {c.us ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      {c.name}
+                    </span>
+                  ) : (
+                    c.name
+                  )}
+                </td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
+                <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Panel>
 
       {/* 6. Customer Growth Direction & Strategy */}
       <SectionHeader index="06" title="Customer Growth Direction &amp; Strategy" subtitle="Where is this client heading — so we can prepare" />
@@ -713,13 +947,54 @@ function ExecutivePage() {
                   </span>
                 </div>
               </div>
-              {/* Confirm / dismiss actions hidden on read-only executive view */}
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[11px] text-muted-foreground italic">
-          AI/qualitative — no confirmed data source. Review with KAM before acting.
-        </p>
+      </Panel>
+
+      {/* Opportunity Backlog — full table */}
+      <Panel
+        title="Opportunity Backlog"
+        subtitle="All growth initiatives with scoring"
+        actions={
+          <>
+            <ReadinessBadge state="sample" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Star className="h-3 w-3" /> {growthOpportunities.length} initiatives
+            </span>
+          </>
+        }
+      >
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="pb-2 text-left">Initiative</th>
+              <th className="pb-2 text-left">Category</th>
+              <th className="pb-2 text-right">Impact</th>
+              <th className="pb-2 text-right">Effort</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {growthOpportunities.map((o) => (
+              <tr key={o.title} className="hover:bg-accent/30">
+                <td className="py-2.5 font-medium">{o.title}</td>
+                <td className="py-2.5">
+                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    {o.lens}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right">
+                  <ImpactBadge value={o.impact} />
+                </td>
+                <td className="py-2.5 text-right">
+                  <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {o.effort}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Panel>
 
     </div>

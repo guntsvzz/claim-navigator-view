@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import { Radio, PenLine, Sparkles } from "lucide-react";
+import { Radio, PenLine, Sparkles, FlaskConical } from "lucide-react";
 
-export type Readiness = "live" | "manual" | "ai" | "none";
+export type Readiness = "live" | "manual" | "ai" | "sample" | "none";
 
 const meta: Record<
-  "live" | "manual" | "ai",
+  "live" | "manual" | "ai" | "sample",
   { label: string; className: string; icon: typeof Radio }
 > = {
   live: {
@@ -22,6 +22,11 @@ const meta: Record<
     className: "bg-primary/15 text-primary border-primary/30",
     icon: Sparkles,
   },
+  sample: {
+    label: "Sample",
+    className: "bg-transparent text-muted-foreground border-border",
+    icon: FlaskConical,
+  },
 };
 
 export function ReadinessBadge({
@@ -32,7 +37,7 @@ export function ReadinessBadge({
   className?: string;
 }) {
   if (state === "none") return null;
-  const m = meta[state];
+  const m = meta[state as keyof typeof meta];
   const Icon = m.icon;
   return (
     <span
@@ -68,6 +73,10 @@ export function ReadinessLegend({ className }: { className?: string }) {
       <span className="inline-flex items-center gap-1.5">
         <ReadinessBadge state="ai" />
         <span>AI-suggested</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <ReadinessBadge state="sample" />
+        <span>Demo placeholder</span>
       </span>
     </div>
   );
