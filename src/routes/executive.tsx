@@ -1,16 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   AlertTriangle,
   Briefcase,
   Calendar,
   CheckCircle2,
+  CreditCard,
   FileSignature,
   Lock,
   Mail,
+  MessageSquare,
   Phone,
   RefreshCw,
   Sparkles,
+  Star,
   Target,
+  TrendingUp,
   Users,
   XCircle,
 } from "lucide-react";
@@ -100,6 +113,99 @@ const contractMilestones = [
   { date: "01 Sep 2023", label: "Renewal · Term 2", detail: "Expanded to Group Health + Digital claim portal", status: "done" as const },
   { date: "01 Jan 2026", label: "Current Term", detail: "Active — SLA 95%, 4 product lines", status: "current" as const },
   { date: "31 Dec 2026", label: "Upcoming Renewal", detail: "Proposal due 30 Sep · target uplift +8%", status: "upcoming" as const },
+];
+
+// Section 05 — Renewal histogram (MANUAL · BD+KAM)
+const renewalHistory = [
+  { year: "2020", rate: 91 },
+  { year: "2021", rate: 93 },
+  { year: "2022", rate: 94 },
+  { year: "2023", rate: 95 },
+  { year: "2024", rate: 95 },
+  { year: "2025", rate: 96 },
+];
+
+// Section 05 — AI upsell suggestions (AI · review)
+const upsellSuggestions = [
+  {
+    product: "Chronic Care Rider",
+    rationale: "Diabetes claims up 22% YoY — high-risk members likely to benefit from managed-care coverage.",
+    source: "Claim trend",
+  },
+  {
+    product: "Telemedicine Add-on",
+    rationale: "OPD utilisation 68%; digital pre-auth already in use — low-friction upsell with no network dependency.",
+    source: "Claim trend · KAM",
+  },
+  {
+    product: "Group Health SME Extension",
+    rationale: "Client expanding workforce by ~15% (BD note); current group plan cap may be reached by Q3 2026.",
+    source: "BD note",
+  },
+];
+
+// Section 05 — Churn risk drivers (AI/KAM estimate — not a measured score)
+const churnDrivers = [
+  { driver: "Premium increase > 8% at renewal", tone: "destructive" as const },
+  { driver: "SLA breach on high-cost claims", tone: "destructive" as const },
+  { driver: "Slow pre-authorisation turnaround", tone: "warning" as const },
+  { driver: "Provider network gaps (upcountry)", tone: "warning" as const },
+  { driver: "Limited digital self-service", tone: "info" as const },
+];
+
+// Section 06 — Growth direction narrative (AI · review)
+const growthNarrative = {
+  sentences: [
+    "Client is actively moving toward digital self-service — their IT Director confirmed a portal RFP planned for Q3 2026.",
+    "Workforce expansion of ~15% expected before year-end, which is likely to trigger a new group-health plan or rider.",
+    "Chronic-disease prevalence in the covered population (hypertension, diabetes) is rising, signalling growing demand for managed-care and wellness bundles.",
+    "Public social-listening signals show increased awareness of telemedicine benefits among their industry peers.",
+  ],
+  sources: ["BD note", "IT Director (KAM)", "Claim trend", "Social listening"],
+};
+
+// Section 06 — Opportunities to prepare (AI-suggested · reviewable)
+const growthOpportunities = [
+  {
+    title: "Digital Self-Service Portal",
+    lens: "Digital Integration",
+    rationale: "Client IT Director confirmed portal RFP for Q3 2026 — we should pre-brief on our API capability.",
+    sources: ["BD note", "IT Director (KAM)"],
+    impact: "High",
+    effort: "Medium",
+  },
+  {
+    title: "Telemedicine Claim Auto-Approval",
+    lens: "Automation",
+    rationale: "OPD volume and telemedicine add-on usage create a clear workflow for pre-auth automation.",
+    sources: ["Claim trend"],
+    impact: "High",
+    effort: "High",
+  },
+  {
+    title: "Group Health SME Extension",
+    lens: "New Product",
+    rationale: "Workforce growth projection will exceed current plan cap — propose expanded group scheme early.",
+    sources: ["BD note"],
+    impact: "Medium",
+    effort: "Low",
+  },
+  {
+    title: "Wellness Program Bundle",
+    lens: "New Product",
+    rationale: "Rising chronic-disease claims make a preventive-wellness rider commercially viable and differentiating.",
+    sources: ["Claim trend", "KAM"],
+    impact: "Medium",
+    effort: "Medium",
+  },
+  {
+    title: "ESG-aligned Green Hospital Network",
+    lens: "ESG / Compliance",
+    rationale: "Client's new ESG policy (FY2026 report) mentions green procurement — positions us ahead of RFP criteria.",
+    sources: ["Social listening", "BD note"],
+    impact: "Low",
+    effort: "Medium",
+  },
 ];
 
 function ExecutivePage() {
@@ -409,11 +515,212 @@ function ExecutivePage() {
 
       {/* 5. Customer Behaviour */}
       <SectionHeader index="05" title="Customer Behaviour" subtitle="Loyalty, satisfaction, financial discipline" />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Renewal Rate" value="96%" sub="Last 12 months" delta={2} icon={RefreshCw} tone="success" readiness="manual" />
-        <KpiCard label="Upsell Potential" value="3 lines" sub="of 7 available" icon={Sparkles} tone="info" readiness="manual" />
+
+      {/* Renewal Rate — histogram */}
+      <Panel
+        title="Renewal Rate · Historical"
+        subtitle="Annual renewal consistency — BD + KAM maintained"
+        actions={
+          <>
+            <ReadinessBadge state="manual" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <RefreshCw className="h-3 w-3" /> Overall 96%
+            </span>
+          </>
+        }
+      >
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={renewalHistory} margin={{ left: -16, right: 8, top: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis
+              stroke="var(--color-muted-foreground)"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              domain={[85, 100]}
+              tickFormatter={(v) => `${v}%`}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "var(--color-popover)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(v: number) => [`${v}%`, "Renewal Rate"]}
+            />
+            <Bar dataKey="rate" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Panel>
+
+      {/* Upsell / Cross-sell — AI suggestion */}
+      <Panel
+        title="Upsell & Cross-sell Opportunities"
+        subtitle="AI analysis of claim trends and BD notes — review before presenting"
+        actions={
+          <>
+            <ReadinessBadge state="ai" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+              <Sparkles className="h-3 w-3" /> AI suggestion · review
+            </span>
+          </>
+        }
+      >
+        <ul className="space-y-3">
+          {upsellSuggestions.map((s) => (
+            <li
+              key={s.product}
+              className="flex items-start justify-between gap-4 rounded-md border border-primary/20 bg-primary/5 p-3"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-sm">{s.product}</span>
+                  <SourceChip label={s.source} />
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{s.rationale}</p>
+              </div>
+              {/* Confirm/dismiss hidden on read-only executive view */}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          AI-generated from claim trends and BD notes — confirm with KAM before presenting to client.
+        </p>
+      </Panel>
+
+      {/* Churn Risk & Drivers */}
+      <Panel
+        title="Churn Risk & Drivers"
+        subtitle="KAM/AI judgement estimate — not a measured score"
+        actions={<ReadinessBadge state="ai" />}
+      >
+        <ul className="space-y-2.5">
+          {churnDrivers.map((d) => {
+            const dotColor =
+              d.tone === "destructive"
+                ? "bg-destructive"
+                : d.tone === "warning"
+                  ? "bg-warning"
+                  : "bg-info";
+            const label =
+              d.tone === "destructive" ? "High" : d.tone === "warning" ? "Medium" : "Low";
+            const labelColor =
+              d.tone === "destructive"
+                ? "text-destructive"
+                : d.tone === "warning"
+                  ? "text-warning"
+                  : "text-info";
+            return (
+              <li key={d.driver} className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2">
+                  <span className={cn("h-2 w-2 shrink-0 rounded-full", dotColor)} />
+                  {d.driver}
+                </span>
+                <span className={cn("shrink-0 text-xs font-semibold", labelColor)}>{label} risk</span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          Drivers reflect KAM judgement — not a statistically measured churn index.
+        </p>
+      </Panel>
+
+      {/* Financial discipline & satisfaction — pending */}
+      <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">Financial discipline &amp; satisfaction</span>
+          <span className="rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            No source yet
+          </span>
+          <span>—</span>
+          <span>Price Sensitivity, CSAT / NPS, DSO, Overdue Rate, and Credit Risk are pending Finance / survey data.</span>
+        </div>
       </div>
 
+      {/* 6. Customer Growth Direction & Strategy */}
+      <SectionHeader index="06" title="Customer Growth Direction &amp; Strategy" subtitle="Where is this client heading — so we can prepare" />
+
+      {/* AI narrative card */}
+      <Panel
+        title="Client Growth Direction"
+        subtitle="AI synthesis of public signals, claim trends, and team notes"
+        actions={
+          <>
+            <ReadinessBadge state="ai" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+              <Sparkles className="h-3 w-3" /> AI-generated · review
+            </span>
+          </>
+        }
+      >
+        <ul className="space-y-2.5">
+          {growthNarrative.sentences.map((sentence, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed">
+              <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              {sentence}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-muted-foreground font-semibold">Sources:</span>
+          {growthNarrative.sources.map((s) => (
+            <SourceChip key={s} label={s} />
+          ))}
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          AI-generated from BD notes, claim trends, and public signals — review before presenting to client.
+        </p>
+      </Panel>
+
+      {/* Opportunities to prepare */}
+      <Panel
+        title="Opportunities to Prepare"
+        subtitle="AI-suggested initiatives based on client growth signals — confirm before acting"
+        actions={
+          <>
+            <ReadinessBadge state="ai" />
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Star className="h-3 w-3" /> {growthOpportunities.length} initiatives
+            </span>
+          </>
+        }
+      >
+        <ul className="space-y-3">
+          {growthOpportunities.map((o) => (
+            <li key={o.title} className="rounded-md border border-border bg-background p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-sm">{o.title}</span>
+                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                      {o.lens}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{o.rationale}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {o.sources.map((s) => (
+                      <SourceChip key={s} label={s} />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <ImpactBadge value={o.impact} />
+                  <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {o.effort} effort
+                  </span>
+                </div>
+              </div>
+              {/* Confirm / dismiss actions hidden on read-only executive view */}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          AI/qualitative — no confirmed data source. Review with KAM before acting.
+        </p>
+      </Panel>
 
     </div>
   );
@@ -436,6 +743,29 @@ function SectionHeader({
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
     </div>
+  );
+}
+
+function SourceChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+      <MessageSquare className="h-2.5 w-2.5" />
+      {label}
+    </span>
+  );
+}
+
+function ImpactBadge({ value }: { value: string }) {
+  const cls =
+    value === "High"
+      ? "bg-success/15 text-success border-success/30"
+      : value === "Medium"
+        ? "bg-warning/15 text-warning border-warning/30"
+        : "bg-muted text-muted-foreground border-border";
+  return (
+    <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-semibold", cls)}>
+      {value} impact
+    </span>
   );
 }
 
