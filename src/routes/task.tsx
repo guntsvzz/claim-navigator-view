@@ -2,19 +2,25 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   AlertCircle,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock,
+  Flag,
   Hourglass,
+  LayoutGrid,
+  ListChecks,
+  ListTodo,
+  Lock,
+  Plus,
   RefreshCw,
-  Search,
+  Repeat,
   Sparkles,
-  Users,
 } from "lucide-react";
 import { Panel } from "@/components/dashboard/panel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,15 +38,16 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/task")({
   head: () => ({
     meta: [
-      { title: "Team Task Monitoring · Claim Ops" },
+      { title: "แดชบอร์ดงาน · Claim Ops" },
       {
         name: "description",
         content:
-          "Per-person workload, progress, blockers, and AI-generated summaries for Key Account Management teams.",
+          "ติดตามและจัดการงานของทีม พร้อมสรุปภาระงานรายบุคคลด้วย AI สำหรับทีม Key Account Management",
       },
     ],
   }),
@@ -50,14 +57,14 @@ export const Route = createFileRoute("/task")({
 /* ----------------------------- Types & mock data ----------------------------- */
 
 type TaskStatus = "completed" | "in-progress" | "overdue" | "upcoming";
-type Role = "Team Lead" | "Executive";
+type Priority = "high" | "medium" | "low";
+type Role = "Team Lead" | "Executive" | "Team Member";
 
 interface Member {
   id: string;
   name: string;
   role: string;
   avatarUrl: string;
-  openCount: number;
 }
 
 interface Task {
@@ -65,263 +72,317 @@ interface Task {
   name: string;
   client: string;
   status: TaskStatus;
+  priority: Priority;
   dueDate: string; // ISO yyyy-mm-dd
   startDate: string;
   assigneeId: string;
   description: string;
+  subDone: number;
+  subTotal: number;
   activity: { at: string; text: string }[];
 }
 
+interface RecurringTask {
+  id: string;
+  name: string;
+  client: string;
+  cadence: "daily" | "weekly" | "monthly";
+  nextRun: string;
+  assigneeId: string;
+  priority: Priority;
+}
+
+interface Suggestion {
+  id: string;
+  title: string;
+  detail: string;
+  eta: string;
+  priority: Priority;
+}
+
+const CURRENT_USER_ID = "m1";
+
 const members: Member[] = [
-  {
-    id: "m1",
-    name: "Anong Srisai",
-    role: "Senior Account Manager",
-    avatarUrl: "/avatars/anong.png",
-    openCount: 4,
-  },
-  {
-    id: "m2",
-    name: "Krit Wattana",
-    role: "Claims Analyst",
-    avatarUrl: "/avatars/krit.png",
-    openCount: 5,
-  },
-  {
-    id: "m3",
-    name: "Ploy Chaiyo",
-    role: "Account Manager",
-    avatarUrl: "/avatars/ploy.png",
-    openCount: 3,
-  },
-  {
-    id: "m4",
-    name: "Somsak Meng",
-    role: "Onboarding Specialist",
-    avatarUrl: "/avatars/somsak.png",
-    openCount: 6,
-  },
+  { id: "m1", name: "Anong Srisai", role: "Senior Account Manager", avatarUrl: "/avatars/anong.png" },
+  { id: "m2", name: "Krit Wattana", role: "Claims Analyst", avatarUrl: "/avatars/krit.png" },
+  { id: "m3", name: "Ploy Chaiyo", role: "Account Manager", avatarUrl: "/avatars/ploy.png" },
+  { id: "m4", name: "Somsak Meng", role: "Onboarding Specialist", avatarUrl: "/avatars/somsak.png" },
 ];
 
 const tasks: Task[] = [
   // Anong (m1)
   {
     id: "t1",
-    name: "Q3 renewal proposal for Bangkok Life",
+    name: "ข้อเสนอต่ออายุกรมธรรม์ Q3 — Bangkok Life",
     client: "Bangkok Life",
     status: "in-progress",
+    priority: "high",
     startDate: "2026-07-13",
     dueDate: "2026-07-15",
     assigneeId: "m1",
+    subDone: 1,
+    subTotal: 3,
     description:
-      "Prepare and circulate the Q3 renewal proposal including revised premium tiers and SLA commitments.",
+      "จัดทำและส่งข้อเสนอต่ออายุ Q3 รวมถึงเบี้ยประกันแบบใหม่และข้อผูกพัน SLA",
     activity: [
-      { at: "14 Jul, 09:12", text: "Drafted premium tier comparison." },
-      { at: "13 Jul, 16:40", text: "Kickoff call with underwriting." },
+      { at: "14 ก.ค. 09:12", text: "ร่างตารางเปรียบเทียบเบี้ยประกันเสร็จ" },
+      { at: "13 ก.ค. 16:40", text: "ประชุมเริ่มงานกับทีมพิจารณารับประกัน" },
     ],
   },
   {
     id: "t2",
-    name: "Reconcile disputed claims batch #4821",
+    name: "กระทบยอดเคลมพิพาท batch #4821",
     client: "Muang Thai",
     status: "overdue",
+    priority: "high",
     startDate: "2026-07-08",
     dueDate: "2026-07-12",
     assigneeId: "m1",
+    subDone: 2,
+    subTotal: 5,
     description:
-      "Reconcile 38 disputed claims flagged during the monthly audit and coordinate resolution with the provider.",
+      "กระทบยอดเคลมพิพาท 38 รายการที่พบระหว่างการตรวจสอบรายเดือน และประสานการแก้ไขกับผู้ให้บริการ",
     activity: [
-      { at: "12 Jul, 18:05", text: "Escalated 6 items to provider network." },
-      { at: "10 Jul, 11:20", text: "Categorized disputes by root cause." },
+      { at: "12 ก.ค. 18:05", text: "ยกระดับ 6 รายการไปยังเครือข่ายผู้ให้บริการ" },
+      { at: "10 ก.ค. 11:20", text: "จัดหมวดหมู่ข้อพิพาทตามสาเหตุหลัก" },
     ],
   },
   {
     id: "t3",
-    name: "Send weekly KAM scorecard",
+    name: "ส่งสกอร์การ์ด KAM รายสัปดาห์",
     client: "Bangkok Life",
     status: "completed",
+    priority: "medium",
     startDate: "2026-07-13",
     dueDate: "2026-07-14",
     assigneeId: "m1",
-    description: "Compile and email the weekly account scorecard to stakeholders.",
-    activity: [{ at: "14 Jul, 08:30", text: "Scorecard delivered to 4 contacts." }],
+    subDone: 2,
+    subTotal: 2,
+    description: "รวบรวมและส่งอีเมลสกอร์การ์ดบัญชีรายสัปดาห์ให้ผู้เกี่ยวข้อง",
+    activity: [{ at: "14 ก.ค. 08:30", text: "ส่งสกอร์การ์ดให้ผู้ติดต่อ 4 ราย" }],
   },
   {
     id: "t4",
-    name: "Prep QBR deck for executive review",
+    name: "เตรียมสไลด์ QBR สำหรับผู้บริหาร",
     client: "Thai Health",
     status: "upcoming",
+    priority: "medium",
     startDate: "2026-07-16",
     dueDate: "2026-07-17",
     assigneeId: "m1",
-    description: "Build the quarterly business review deck ahead of the executive meeting.",
-    activity: [{ at: "13 Jul, 10:00", text: "Outline template created." }],
+    subDone: 0,
+    subTotal: 4,
+    description: "จัดทำสไลด์ทบทวนผลประกอบการรายไตรมาสก่อนการประชุมผู้บริหาร",
+    activity: [{ at: "13 ก.ค. 10:00", text: "สร้างเทมเพลตโครงร่างแล้ว" }],
   },
   // Krit (m2)
   {
     id: "t5",
-    name: "Fraud pattern review on high-cost claims",
+    name: "ตรวจรูปแบบทุจริตในเคลมค่ารักษาสูง",
     client: "Allianz Ayudhya",
     status: "in-progress",
+    priority: "high",
     startDate: "2026-07-13",
     dueDate: "2026-07-16",
     assigneeId: "m2",
-    description: "Investigate anomalous high-cost IPD claims flagged by the fraud model.",
-    activity: [{ at: "14 Jul, 13:15", text: "Reviewed 12 of 20 flagged cases." }],
+    subDone: 3,
+    subTotal: 5,
+    description: "ตรวจสอบเคลม IPD ค่ารักษาสูงที่ผิดปกติซึ่งถูกโมเดลตรวจจับทุจริตทำเครื่องหมายไว้",
+    activity: [{ at: "14 ก.ค. 13:15", text: "ตรวจสอบแล้ว 12 จาก 20 เคส" }],
   },
   {
     id: "t6",
-    name: "Update ICD mapping table",
+    name: "อัปเดตตารางแมป ICD",
     client: "Muang Thai",
     status: "completed",
+    priority: "low",
     startDate: "2026-07-13",
     dueDate: "2026-07-14",
     assigneeId: "m2",
-    description: "Refresh ICD-10 to internal category mapping for the new fiscal year.",
-    activity: [{ at: "14 Jul, 15:00", text: "Table published to shared drive." }],
+    subDone: 2,
+    subTotal: 2,
+    description: "รีเฟรชการแมป ICD-10 ไปยังหมวดหมู่ภายในสำหรับปีงบประมาณใหม่",
+    activity: [{ at: "14 ก.ค. 15:00", text: "เผยแพร่ตารางขึ้นไดรฟ์ที่ใช้ร่วมกัน" }],
   },
   {
     id: "t7",
-    name: "SLA breach report for June",
+    name: "รายงานการละเมิด SLA เดือนมิถุนายน",
     client: "Thai Health",
     status: "overdue",
+    priority: "medium",
     startDate: "2026-07-07",
     dueDate: "2026-07-11",
     assigneeId: "m2",
-    description: "Summarize June SLA breaches with root-cause breakdown.",
-    activity: [{ at: "11 Jul, 17:45", text: "Waiting on provider response times data." }],
+    subDone: 1,
+    subTotal: 3,
+    description: "สรุปการละเมิด SLA เดือนมิถุนายนพร้อมการวิเคราะห์สาเหตุ",
+    activity: [{ at: "11 ก.ค. 17:45", text: "รอข้อมูลเวลาตอบสนองจากผู้ให้บริการ" }],
   },
   {
     id: "t8",
-    name: "Validate auto-adjudication rules",
+    name: "ตรวจสอบกฎ Auto-Adjudication",
     client: "Allianz Ayudhya",
     status: "in-progress",
+    priority: "medium",
     startDate: "2026-07-14",
     dueDate: "2026-07-16",
     assigneeId: "m2",
-    description: "Test new auto-adjudication rules against last month's claim sample.",
-    activity: [{ at: "14 Jul, 11:00", text: "Configured test harness." }],
+    subDone: 1,
+    subTotal: 4,
+    description: "ทดสอบกฎ auto-adjudication ใหม่กับตัวอย่างเคลมของเดือนที่แล้ว",
+    activity: [{ at: "14 ก.ค. 11:00", text: "ตั้งค่าชุดทดสอบเรียบร้อย" }],
   },
   {
     id: "t9",
-    name: "Monthly fraud KPI refresh",
+    name: "รีเฟรช KPI ทุจริตรายเดือน",
     client: "Muang Thai",
     status: "upcoming",
+    priority: "low",
     startDate: "2026-07-17",
     dueDate: "2026-07-17",
     assigneeId: "m2",
-    description: "Refresh fraud detection KPIs for the monthly leadership review.",
+    subDone: 0,
+    subTotal: 2,
+    description: "รีเฟรช KPI การตรวจจับทุจริตสำหรับการทบทวนของผู้บริหารรายเดือน",
     activity: [],
   },
   // Ploy (m3)
   {
     id: "t10",
-    name: "Onboard new SME group policy",
+    name: "ออนบอร์ดกรมธรรม์กลุ่ม SME ใหม่",
     client: "SCB Protect",
     status: "in-progress",
+    priority: "high",
     startDate: "2026-07-13",
     dueDate: "2026-07-16",
     assigneeId: "m3",
-    description: "Guide SCB Protect through onboarding for their new SME group health policy.",
-    activity: [{ at: "14 Jul, 10:20", text: "Collected member census file." }],
+    subDone: 2,
+    subTotal: 6,
+    description: "นำ SCB Protect ผ่านกระบวนการออนบอร์ดกรมธรรม์สุขภาพกลุ่ม SME ใหม่",
+    activity: [{ at: "14 ก.ค. 10:20", text: "รวบรวมไฟล์ทะเบียนสมาชิกแล้ว" }],
   },
   {
     id: "t11",
-    name: "Resolve portal access tickets",
+    name: "แก้ไขทิกเก็ตการเข้าถึงพอร์ทัล",
     client: "SCB Protect",
     status: "completed",
+    priority: "medium",
     startDate: "2026-07-13",
     dueDate: "2026-07-14",
     assigneeId: "m3",
-    description: "Clear the backlog of provider portal access requests.",
-    activity: [{ at: "14 Jul, 14:10", text: "All 9 tickets resolved." }],
+    subDone: 3,
+    subTotal: 3,
+    description: "เคลียร์งานค้างของคำขอเข้าถึงพอร์ทัลผู้ให้บริการ",
+    activity: [{ at: "14 ก.ค. 14:10", text: "แก้ไขครบทั้ง 9 ทิกเก็ต" }],
   },
   {
     id: "t12",
-    name: "Client satisfaction follow-up calls",
+    name: "โทรติดตามความพึงพอใจลูกค้า",
     client: "Thai Health",
     status: "upcoming",
+    priority: "low",
     startDate: "2026-07-16",
     dueDate: "2026-07-17",
     assigneeId: "m3",
-    description: "Conduct post-claim satisfaction calls with 8 key members.",
+    subDone: 0,
+    subTotal: 8,
+    description: "โทรสำรวจความพึงพอใจหลังการเคลมกับสมาชิกคนสำคัญ 8 ราย",
     activity: [],
   },
   // Somsak (m4)
   {
     id: "t13",
-    name: "Configure claim intake integration",
+    name: "ตั้งค่าการเชื่อมต่อรับเคลม",
     client: "Bangkok Life",
     status: "overdue",
+    priority: "high",
     startDate: "2026-07-06",
     dueDate: "2026-07-10",
     assigneeId: "m4",
-    description: "Set up the API integration for automated claim intake from the client system.",
-    activity: [{ at: "10 Jul, 16:00", text: "Blocked on client sandbox credentials." }],
+    subDone: 1,
+    subTotal: 4,
+    description: "ตั้งค่าการเชื่อมต่อ API สำหรับรับเคลมอัตโนมัติจากระบบของลูกค้า",
+    activity: [{ at: "10 ก.ค. 16:00", text: "ติดขัดเรื่องข้อมูลรับรอง sandbox ของลูกค้า" }],
   },
   {
     id: "t14",
-    name: "Train client team on new portal",
+    name: "อบรมทีมลูกค้าเรื่องพอร์ทัลใหม่",
     client: "SCB Protect",
     status: "in-progress",
+    priority: "medium",
     startDate: "2026-07-14",
     dueDate: "2026-07-15",
     assigneeId: "m4",
-    description: "Run the onboarding training session for the client operations team.",
-    activity: [{ at: "14 Jul, 09:45", text: "Scheduled session for 15 Jul." }],
+    subDone: 1,
+    subTotal: 2,
+    description: "จัดเซสชันอบรมออนบอร์ดให้ทีมปฏิบัติการของลูกค้า",
+    activity: [{ at: "14 ก.ค. 09:45", text: "นัดเซสชันวันที่ 15 ก.ค." }],
   },
   {
     id: "t15",
-    name: "Migrate legacy policy records",
+    name: "ย้ายข้อมูลกรมธรรม์เดิม",
     client: "Muang Thai",
     status: "in-progress",
+    priority: "medium",
     startDate: "2026-07-13",
     dueDate: "2026-07-16",
     assigneeId: "m4",
-    description: "Migrate 2,400 legacy policy records into the new platform.",
-    activity: [{ at: "14 Jul, 12:30", text: "1,100 records migrated and validated." }],
+    subDone: 2,
+    subTotal: 4,
+    description: "ย้ายข้อมูลกรมธรรม์เดิม 2,400 รายการเข้าสู่แพลตฟอร์มใหม่",
+    activity: [{ at: "14 ก.ค. 12:30", text: "ย้ายและตรวจสอบแล้ว 1,100 รายการ" }],
   },
   {
     id: "t16",
-    name: "Verify data mapping sign-off",
+    name: "ยืนยันการเซ็นรับรองการแมปข้อมูล",
     client: "Bangkok Life",
     status: "completed",
+    priority: "low",
     startDate: "2026-07-13",
     dueDate: "2026-07-14",
     assigneeId: "m4",
-    description: "Obtain client sign-off on the field mapping specification.",
-    activity: [{ at: "14 Jul, 15:40", text: "Sign-off received from IT Director." }],
+    subDone: 1,
+    subTotal: 1,
+    description: "ขอการเซ็นรับรองข้อกำหนดการแมปฟิลด์จากลูกค้า",
+    activity: [{ at: "14 ก.ค. 15:40", text: "ได้รับการเซ็นรับรองจากผู้อำนวยการ IT" }],
   },
   {
     id: "t17",
-    name: "Set up monitoring alerts",
+    name: "ตั้งค่าการแจ้งเตือนการมอนิเตอร์",
     client: "SCB Protect",
     status: "upcoming",
+    priority: "medium",
     startDate: "2026-07-17",
     dueDate: "2026-07-17",
     assigneeId: "m4",
-    description: "Configure integration health alerts for the go-live window.",
+    subDone: 0,
+    subTotal: 3,
+    description: "ตั้งค่าการแจ้งเตือนสุขภาพการเชื่อมต่อสำหรับช่วง go-live",
     activity: [],
   },
-  {
-    id: "t18",
-    name: "Draft go-live runbook",
-    client: "Bangkok Life",
-    status: "upcoming",
-    startDate: "2026-07-16",
-    dueDate: "2026-07-17",
-    assigneeId: "m4",
-    description: "Prepare the go-live runbook and rollback plan.",
-    activity: [],
-  },
+];
+
+const recurringTasks: RecurringTask[] = [
+  { id: "r1", name: "ส่งสรุปแนวโน้มเคลมรายเดือน", client: "Bangkok Life", cadence: "monthly", nextRun: "2026-08-01", assigneeId: "m1", priority: "medium" },
+  { id: "r2", name: "สกอร์การ์ด KAM รายสัปดาห์", client: "Bangkok Life", cadence: "weekly", nextRun: "2026-07-21", assigneeId: "m1", priority: "medium" },
+  { id: "r3", name: "ตรวจสอบคิวทุจริตประจำวัน", client: "Allianz Ayudhya", cadence: "daily", nextRun: "2026-07-15", assigneeId: "m2", priority: "high" },
+  { id: "r4", name: "รายงานสถานะออนบอร์ดรายสัปดาห์", client: "SCB Protect", cadence: "weekly", nextRun: "2026-07-21", assigneeId: "m3", priority: "low" },
+  { id: "r5", name: "ตรวจสุขภาพการเชื่อมต่อรายวัน", client: "SCB Protect", cadence: "daily", nextRun: "2026-07-15", assigneeId: "m4", priority: "high" },
+];
+
+const suggestions: Suggestion[] = [
+  { id: "s1", title: "ส่งสรุปแนวโน้มเคลมรายเดือน", detail: "BVTPA ส่งสรุปแนวโน้มเคลมประจำเดือนให้ลูกค้า", eta: "~5 วัน", priority: "medium" },
+  { id: "s2", title: "UAT สำหรับ Auto-Adjudication", detail: "ส่งผลการทดสอบให้ทีมลูกค้าเพื่อตรวจสอบและอนุมัติ", eta: "~5 วัน", priority: "medium" },
+  { id: "s3", title: "จัดทำเอกสารเคลมผ่านแฟกซ์", detail: "พัฒนาเช็กลิสต์สำหรับกระบวนการเคลมผ่านแฟกซ์", eta: "~5 วัน", priority: "high" },
+  { id: "s4", title: "ศึกษาความเป็นไปได้ Digital Claim", detail: "ศึกษาความเป็นไปได้ในการขยายบริการ Digital Claim", eta: "~7 วัน", priority: "low" },
 ];
 
 /* ----------------------------- Config maps ----------------------------- */
 
 const dateRanges: Record<string, { label: string; start: string; end: string }> = {
-  thisWeek: { label: "13–17 Jul 2026", start: "2026-07-13", end: "2026-07-17" },
-  lastWeek: { label: "6–12 Jul 2026", start: "2026-07-06", end: "2026-07-12" },
-  thisMonth: { label: "1–31 Jul 2026", start: "2026-07-01", end: "2026-07-31" },
+  thisWeek: { label: "13–17 ก.ค. 2026", start: "2026-07-13", end: "2026-07-17" },
+  lastWeek: { label: "6–12 ก.ค. 2026", start: "2026-07-06", end: "2026-07-12" },
+  thisMonth: { label: "1–31 ก.ค. 2026", start: "2026-07-01", end: "2026-07-31" },
 };
 
 const statusMeta: Record<
@@ -329,7 +390,7 @@ const statusMeta: Record<
   { label: string; icon: typeof CheckCircle2; text: string; bg: string; border: string; dot: string }
 > = {
   completed: {
-    label: "Completed",
+    label: "เสร็จสิ้น",
     icon: CheckCircle2,
     text: "text-success",
     bg: "bg-success/10",
@@ -337,7 +398,7 @@ const statusMeta: Record<
     dot: "bg-success",
   },
   "in-progress": {
-    label: "In Progress",
+    label: "กำลังดำเนินการ",
     icon: Clock,
     text: "text-info",
     bg: "bg-info/10",
@@ -345,7 +406,7 @@ const statusMeta: Record<
     dot: "bg-info",
   },
   overdue: {
-    label: "Overdue",
+    label: "เกินกำหนด",
     icon: AlertCircle,
     text: "text-destructive",
     bg: "bg-destructive/10",
@@ -353,7 +414,7 @@ const statusMeta: Record<
     dot: "bg-destructive",
   },
   upcoming: {
-    label: "Upcoming",
+    label: "กำลังจะถึง",
     icon: Hourglass,
     text: "text-warning",
     bg: "bg-warning/10",
@@ -362,20 +423,35 @@ const statusMeta: Record<
   },
 };
 
+const priorityMeta: Record<Priority, { label: string; text: string; bg: string; border: string }> = {
+  high: { label: "สูง", text: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" },
+  medium: { label: "กลาง", text: "text-warning", bg: "bg-warning/10", border: "border-warning/30" },
+  low: { label: "ต่ำ", text: "text-muted-foreground", bg: "bg-muted", border: "border-border" },
+};
+
+const cadenceLabel: Record<RecurringTask["cadence"], string> = {
+  daily: "รายวัน",
+  weekly: "รายสัปดาห์",
+  monthly: "รายเดือน",
+};
+
 const statusOrder: TaskStatus[] = ["overdue", "in-progress", "upcoming", "completed"];
 
 function initials(name: string) {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
 
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString("th-TH", { day: "2-digit", month: "short" });
+}
+
+function fmtTime(d: Date) {
+  return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+}
+
+function emptyCounts(): Record<TaskStatus, number> {
+  return { completed: 0, "in-progress": 0, overdue: 0, upcoming: 0 };
 }
 
 /* ----------------------------- Page ----------------------------- */
@@ -383,46 +459,56 @@ function fmtDate(iso: string) {
 type LoadState = "ready" | "loading" | "error";
 
 function TaskPage() {
+  const [tab, setTab] = useState<"tasks" | "recurring">("tasks");
+  const [viewMode, setViewMode] = useState<"team" | "timeline">("team");
   const [rangeKey, setRangeKey] = useState<keyof typeof dateRanges>("thisWeek");
   const [role, setRole] = useState<Role>("Team Lead");
-  const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(members[0].id);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("ready");
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const readOnly = role === "Executive";
   const range = dateRanges[rangeKey];
 
-  const filteredMembers = useMemo(
+  // Role-scoped members
+  const scopedMembers = useMemo(
+    () => (role === "Team Member" ? members.filter((m) => m.id === CURRENT_USER_ID) : members),
+    [role],
+  );
+  const scopedMemberIds = useMemo(() => new Set(scopedMembers.map((m) => m.id)), [scopedMembers]);
+
+  // Tasks within range + scope
+  const scopedTasks = useMemo(
     () =>
-      members.filter((m) =>
-        (m.name + " " + m.role).toLowerCase().includes(query.trim().toLowerCase()),
-      ),
-    [query],
+      tasks
+        .filter((t) => scopedMemberIds.has(t.assigneeId))
+        .filter((t) => t.dueDate >= range.start && t.dueDate <= range.end),
+    [scopedMemberIds, range.start, range.end],
   );
 
-  const selectedMember = members.find((m) => m.id === selectedId) ?? members[0];
-
-  const memberTasks = useMemo(() => {
-    return tasks
-      .filter((t) => t.assigneeId === selectedMember.id)
-      .filter((t) => t.dueDate >= range.start && t.dueDate <= range.end)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  }, [selectedMember.id, range.start, range.end]);
-
-  const counts = useMemo(() => {
-    const c: Record<TaskStatus, number> = {
-      completed: 0,
-      "in-progress": 0,
-      overdue: 0,
-      upcoming: 0,
-    };
-    memberTasks.forEach((t) => (c[t.status] += 1));
+  const totalCounts = useMemo(() => {
+    const c = emptyCounts();
+    scopedTasks.forEach((t) => (c[t.status] += 1));
     return c;
-  }, [memberTasks]);
+  }, [scopedTasks]);
+
+  const tasksByMember = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    scopedMembers.forEach((m) => map.set(m.id, []));
+    scopedTasks.forEach((t) => map.get(t.assigneeId)?.push(t));
+    map.forEach((list) =>
+      list.sort(
+        (a, b) =>
+          statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status) ||
+          a.dueDate.localeCompare(b.dueDate),
+      ),
+    );
+    return map;
+  }, [scopedMembers, scopedTasks]);
 
   const minutesAgo = Math.max(1, Math.round((Date.now() - updatedAt.getTime()) / 60000));
+  const hasTasks = scopedTasks.length > 0;
 
   function handleRefresh() {
     setLoadState("loading");
@@ -433,299 +519,167 @@ function TaskPage() {
     }, 900);
   }
 
+  function toggleSummary(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border">
+        <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")} icon={ListTodo}>
+          งาน
+        </TabButton>
+        <TabButton active={tab === "recurring"} onClick={() => setTab("recurring")} icon={Repeat}>
+          งานที่เกิดซ้ำ
+        </TabButton>
+      </div>
+
       {/* Header */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-              Team Monitoring
-            </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">Team Task Monitoring</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Per-person workload &amp; AI summary
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <Select
-                value={rangeKey}
-                onValueChange={(v) => setRangeKey(v as keyof typeof dateRanges)}
-              >
-                <SelectTrigger className="h-9 w-[168px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(dateRanges).map(([key, r]) => (
-                    <SelectItem key={key} value={key}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-              <SelectTrigger className="h-9 w-[150px]">
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-balance">แดชบอร์ดงาน</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">ติดตามและจัดการงานของทีม</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Date range */}
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <Select value={rangeKey} onValueChange={(v) => setRangeKey(v as keyof typeof dateRanges)}>
+              <SelectTrigger className="h-9 w-[150px]" aria-label="เลือกช่วงเวลา">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Team Lead">Team Lead</SelectItem>
-                <SelectItem value="Executive">Executive (read-only)</SelectItem>
+                {Object.entries(dateRanges).map(([key, r]) => (
+                  <SelectItem key={key} value={key}>
+                    {r.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-2"
-              onClick={handleRefresh}
-              disabled={loadState === "loading"}
-            >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5", loadState === "loading" && "animate-spin")}
-              />
-              <span className="hidden sm:inline">
-                Updated {minutesAgo} min ago
-              </span>
-              <span className="sm:hidden">Refresh</span>
-            </Button>
           </div>
+
+          {/* Role */}
+          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+            <SelectTrigger className="h-9 w-[168px]" aria-label="เลือกบทบาท">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Team Lead">Team Lead</SelectItem>
+              <SelectItem value="Executive">Executive (อ่านอย่างเดียว)</SelectItem>
+              <SelectItem value="Team Member">Team Member</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* View switch */}
+          <div className="flex items-center rounded-md border border-border bg-card p-0.5">
+            <ViewToggle active={viewMode === "team"} onClick={() => setViewMode("team")} icon={LayoutGrid}>
+              มุมมองทีม
+            </ViewToggle>
+            <ViewToggle active={viewMode === "timeline"} onClick={() => setViewMode("timeline")} icon={CalendarClock}>
+              ไทม์ไลน์
+            </ViewToggle>
+          </div>
+
+          {!readOnly && (
+            <Button size="sm" className="h-9 gap-1.5" onClick={() => toast.success("เปิดฟอร์มสร้างงานใหม่")}>
+              <Plus className="h-4 w-4" /> สร้างงาน
+            </Button>
+          )}
         </div>
       </section>
 
-      {/* Body: sidebar + main */}
-      <div className="flex flex-col gap-4 lg:flex-row">
-        {/* Member list */}
-        <aside className="w-full shrink-0 lg:w-[280px]">
-          <Panel
-            title="Team Members"
-            subtitle={`${members.length} people`}
-            bodyClassName="p-2"
-            actions={
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Users className="h-3 w-3" /> {range.label}
-              </span>
-            }
-          >
-            <div className="p-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search members..."
-                  className="h-9 pl-8"
-                  aria-label="Search team members"
-                />
-              </div>
-            </div>
-            <ul className="space-y-1" role="listbox" aria-label="Team members">
-              {filteredMembers.length === 0 && (
-                <li className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  No members found
-                </li>
-              )}
-              {filteredMembers.map((m) => {
-                const active = m.id === selectedMember.id;
-                return (
-                  <li key={m.id}>
-                    <button
-                      role="option"
-                      aria-selected={active}
-                      onClick={() => {
-                        setSelectedId(m.id);
-                        setOpenTask(null);
-                      }}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent",
-                      )}
-                    >
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={m.avatarUrl || "/placeholder.svg"} alt="" />
-                        <AvatarFallback className="text-xs">{initials(m.name)}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={cn(
-                            "truncate text-sm font-semibold",
-                            active && "text-primary",
-                          )}
-                        >
-                          {m.name}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">{m.role}</div>
-                      </div>
-                      <span className="grid h-6 min-w-6 place-items-center rounded-full bg-muted px-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
-                        {m.openCount}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </Panel>
-        </aside>
+      {/* Last updated + read-only note */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          onClick={handleRefresh}
+          disabled={loadState === "loading"}
+          className="inline-flex items-center gap-1.5 rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", loadState === "loading" && "animate-spin")} />
+          อัปเดตล่าสุด {fmtTime(updatedAt)} น.
+        </button>
+        {readOnly && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <Lock className="h-3 w-3" /> อ่านอย่างเดียว
+          </span>
+        )}
+        {role === "Team Member" && (
+          <span className="text-[11px] text-muted-foreground">แสดงเฉพาะงานของคุณ</span>
+        )}
+      </div>
 
-        {/* Main panel */}
-        <div className="min-w-0 flex-1">
-          {loadState === "loading" ? (
-            <MainSkeleton />
-          ) : loadState === "error" ? (
-            <ErrorState onRetry={handleRefresh} />
+      {loadState === "loading" ? (
+        <BoardSkeleton />
+      ) : loadState === "error" ? (
+        <ErrorState onRetry={handleRefresh} />
+      ) : (
+        <>
+          {/* Five status cards */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <SummaryCard label="งานทั้งหมด" value={scopedTasks.length} icon={ListTodo} tone="neutral" />
+            <SummaryCard label="กำลังดำเนินการ" value={totalCounts["in-progress"]} icon={Clock} tone="info" />
+            <SummaryCard label="เสร็จสิ้น" value={totalCounts.completed} icon={CheckCircle2} tone="success" />
+            <SummaryCard label="เกินกำหนด" value={totalCounts.overdue} icon={AlertCircle} tone="destructive" />
+            <SummaryCard label="กำลังจะถึง" value={totalCounts.upcoming} icon={Hourglass} tone="warning" />
+          </div>
+
+          {tab === "recurring" ? (
+            <RecurringView readOnly={readOnly} scopedMemberIds={scopedMemberIds} />
+          ) : viewMode === "timeline" ? (
+            <TimelineView
+              range={range}
+              tasks={scopedTasks}
+              onOpen={setOpenTask}
+              empty={!hasTasks}
+            />
           ) : (
-            <div className="space-y-4">
-              {/* Status summary cards */}
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                {(["completed", "in-progress", "overdue", "upcoming"] as TaskStatus[]).map(
-                  (s) => {
-                    const meta = statusMeta[s];
-                    const Icon = meta.icon;
-                    return (
-                      <div
-                        key={s}
-                        className={cn(
-                          "rounded-lg border bg-card p-4",
-                          meta.border,
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={cn(
-                              "text-[11px] font-semibold uppercase tracking-wider",
-                              meta.text,
-                            )}
-                          >
-                            {meta.label}
-                          </span>
-                          <span
-                            className={cn(
-                              "grid h-7 w-7 place-items-center rounded-md",
-                              meta.bg,
-                            )}
-                          >
-                            <Icon className={cn("h-4 w-4", meta.text)} />
-                          </span>
-                        </div>
-                        <div className="mt-2 text-3xl font-bold tabular-nums">{counts[s]}</div>
-                      </div>
-                    );
-                  },
-                )}
+            <div className="flex flex-col gap-4 xl:flex-row">
+              {/* Main board */}
+              <div className="min-w-0 flex-1 space-y-4">
+                {!hasTasks && <EmptyState />}
+                {scopedMembers.map((m) => {
+                  const list = tasksByMember.get(m.id) ?? [];
+                  if (list.length === 0) return null;
+                  return (
+                    <MemberSection
+                      key={m.id}
+                      member={m}
+                      tasks={list}
+                      collapsed={collapsed.has(m.id)}
+                      onToggle={() => toggleSummary(m.id)}
+                      onOpen={setOpenTask}
+                      rangeLabel={range.label}
+                      minutesAgo={minutesAgo}
+                    />
+                  );
+                })}
               </div>
 
-              {/* AI Summary */}
-              <div className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-md bg-violet-500/10">
-                      <Sparkles className="h-4 w-4 text-violet-500" />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-semibold tracking-tight">
-                        AI Summary · {selectedMember.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">Updated {minutesAgo} min ago</p>
-                    </div>
-                  </div>
-                  <span className="hidden rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-violet-500 sm:inline">
-                    AI
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-foreground/90">
-                  {buildSummary(selectedMember, counts, memberTasks, range.label)}
-                </p>
-              </div>
-
-              {/* Tasks table */}
-              <Panel
-                title="Tasks"
-                subtitle={`Sorted by due date · ${range.label}`}
-                bodyClassName="p-0"
-                actions={
-                  <span className="text-[11px] text-muted-foreground">
-                    {memberTasks.length} task{memberTasks.length === 1 ? "" : "s"}
-                  </span>
-                }
-              >
-                {memberTasks.length === 0 ? (
-                  <EmptyState />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          <th className="px-4 py-2.5 text-left">Status</th>
-                          <th className="px-4 py-2.5 text-left">Task</th>
-                          <th className="px-4 py-2.5 text-left">Client</th>
-                          <th className="px-4 py-2.5 text-left">Due</th>
-                          <th className="px-4 py-2.5" aria-label="Open detail" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {[...memberTasks]
-                          .sort(
-                            (a, b) =>
-                              statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status) ||
-                              a.dueDate.localeCompare(b.dueDate),
-                          )
-                          .map((t) => {
-                            const meta = statusMeta[t.status];
-                            return (
-                              <tr
-                                key={t.id}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={`Open detail for ${t.name}`}
-                                onClick={() => setOpenTask(t)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setOpenTask(t);
-                                  }
-                                }}
-                                className="cursor-pointer transition-colors hover:bg-accent/40 focus:outline-none focus-visible:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                              >
-                                <td className="px-4 py-3">
-                                  <span
-                                    className={cn(
-                                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                                      meta.bg,
-                                      meta.border,
-                                      meta.text,
-                                    )}
-                                  >
-                                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                                    {meta.label}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 font-medium">{t.name}</td>
-                                <td className="px-4 py-3 text-muted-foreground">{t.client}</td>
-                                <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted-foreground">
-                                  {fmtDate(t.dueDate)}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Panel>
+              {/* AI Suggestions rail */}
+              <aside className="w-full shrink-0 xl:w-[320px]">
+                <SuggestionsRail readOnly={readOnly} onRefresh={handleRefresh} />
+              </aside>
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Task detail drawer */}
       <Sheet open={!!openTask} onOpenChange={(o) => !o && setOpenTask(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">
           {openTask && (
-            <TaskDetail task={openTask} member={selectedMember} readOnly={readOnly} />
+            <TaskDetail
+              task={openTask}
+              member={members.find((m) => m.id === openTask.assigneeId) ?? members[0]}
+              readOnly={readOnly}
+            />
           )}
         </SheetContent>
       </Sheet>
@@ -735,23 +689,483 @@ function TaskPage() {
 
 /* ----------------------------- Sub-components ----------------------------- */
 
-function TaskDetail({
-  task,
-  member,
-  readOnly,
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  children,
 }: {
-  task: Task;
-  member: Member;
-  readOnly: boolean;
+  active: boolean;
+  onClick: () => void;
+  icon: typeof ListTodo;
+  children: React.ReactNode;
 }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-current={active}
+      className={cn(
+        "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active
+          ? "border-primary text-primary"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {children}
+    </button>
+  );
+}
+
+function ViewToggle({
+  active,
+  onClick,
+  icon: Icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof LayoutGrid;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {children}
+    </button>
+  );
+}
+
+const summaryTone: Record<
+  "neutral" | "info" | "success" | "destructive" | "warning",
+  { text: string; bg: string; border: string }
+> = {
+  neutral: { text: "text-primary", bg: "bg-primary/10", border: "border-border" },
+  info: { text: "text-info", bg: "bg-info/10", border: "border-info/30" },
+  success: { text: "text-success", bg: "bg-success/10", border: "border-success/30" },
+  destructive: { text: "text-destructive", bg: "bg-destructive/10", border: "border-destructive/30" },
+  warning: { text: "text-warning", bg: "bg-warning/10", border: "border-warning/30" },
+};
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: typeof ListTodo;
+  tone: keyof typeof summaryTone;
+}) {
+  const t = summaryTone[tone];
+  return (
+    <div className={cn("rounded-lg border bg-card p-4", t.border)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn("text-[11px] font-semibold uppercase tracking-wider", t.text)}>{label}</span>
+        <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-md", t.bg)}>
+          <Icon className={cn("h-4 w-4", t.text)} />
+        </span>
+      </div>
+      <div className="mt-2 text-3xl font-bold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function StatusChip({ status, count }: { status: TaskStatus; count: number }) {
+  const meta = statusMeta[status];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        meta.bg,
+        meta.border,
+        meta.text,
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+      {count} {meta.label}
+    </span>
+  );
+}
+
+function MemberSection({
+  member,
+  tasks: list,
+  collapsed,
+  onToggle,
+  onOpen,
+  rangeLabel,
+  minutesAgo,
+}: {
+  member: Member;
+  tasks: Task[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onOpen: (t: Task) => void;
+  rangeLabel: string;
+  minutesAgo: number;
+}) {
+  const counts = useMemo(() => {
+    const c = emptyCounts();
+    list.forEach((t) => (c[t.status] += 1));
+    return c;
+  }, [list]);
+
+  return (
+    <Panel
+      title={
+        <div className="flex items-center gap-3">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={member.avatarUrl || "/placeholder.svg"} alt="" />
+            <AvatarFallback className="text-xs">{initials(member.name)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="text-sm font-semibold">{member.name}</div>
+            <div className="text-xs font-normal text-muted-foreground">{member.role}</div>
+          </div>
+        </div>
+      }
+      bodyClassName="space-y-4"
+      actions={
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {statusOrder.map((s) => counts[s] > 0 && <StatusChip key={s} status={s} count={counts[s]} />)}
+        </div>
+      }
+    >
+      {/* AI Summary (collapsible) */}
+      <div className="rounded-lg border border-violet-500/30 bg-violet-500/5">
+        <button
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="flex items-center gap-2">
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-violet-500/10">
+              <Sparkles className="h-4 w-4 text-violet-500" />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold">สรุปโดย AI</span>
+              <span className="block text-[11px] text-muted-foreground">
+                อัปเดตเมื่อ {minutesAgo} นาทีที่แล้ว
+              </span>
+            </span>
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", !collapsed && "rotate-180")}
+          />
+        </button>
+        {!collapsed && (
+          <p className="border-t border-violet-500/20 px-3 py-2.5 text-sm leading-relaxed text-foreground/90">
+            {buildSummary(member, counts, list, rangeLabel)}
+          </p>
+        )}
+      </div>
+
+      {/* Task cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {list.map((t) => (
+          <TaskCard key={t.id} task={t} onOpen={() => onOpen(t)} />
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
   const meta = statusMeta[task.status];
+  const prio = priorityMeta[task.priority];
+  return (
+    <button
+      onClick={onOpen}
+      className="flex flex-col rounded-lg border border-border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="line-clamp-2 text-sm font-semibold leading-snug text-pretty">{task.name}</h4>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+            meta.bg,
+            meta.border,
+            meta.text,
+          )}
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
+          {meta.label}
+        </span>
+      </div>
+
+      <span className="mt-2 inline-flex w-fit items-center rounded border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
+        {task.client}
+      </span>
+
+      <p className="mt-2 line-clamp-1 text-xs text-muted-foreground">{task.description}</p>
+
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5" />
+          {fmtDate(task.dueDate)}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <ListChecks className="h-3.5 w-3.5" />
+          {task.subDone}/{task.subTotal}
+        </span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-semibold",
+            prio.bg,
+            prio.border,
+            prio.text,
+          )}
+        >
+          <Flag className="h-3 w-3" />
+          {prio.label}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function SuggestionsRail({ readOnly, onRefresh }: { readOnly: boolean; onRefresh: () => void }) {
+  return (
+    <Panel
+      className="xl:sticky xl:top-20"
+      title={
+        <span className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-violet-500/10">
+            <Sparkles className="h-4 w-4 text-violet-500" />
+          </span>
+          ข้อเสนอแนะจาก AI
+        </span>
+      }
+      subtitle="อิงตามเป้าหมายของคุณ"
+      bodyClassName="space-y-3"
+      actions={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onRefresh}
+          aria-label="รีเฟรชข้อเสนอแนะ"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      }
+    >
+      {suggestions.map((s) => {
+        const prio = priorityMeta[s.priority];
+        return (
+          <div key={s.id} className="rounded-lg border border-border bg-background p-3">
+            <div className="flex items-start gap-2">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-violet-500" />
+              <div className="min-w-0">
+                <h4 className="truncate text-sm font-semibold">{s.title}</h4>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{s.detail}</p>
+              </div>
+            </div>
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground">{s.eta}</span>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+                    prio.bg,
+                    prio.border,
+                    prio.text,
+                  )}
+                >
+                  {prio.label}
+                </span>
+              </span>
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-primary hover:text-primary"
+                  onClick={() => toast.success("สร้างงานจากข้อเสนอแนะแล้ว")}
+                >
+                  <Plus className="h-3.5 w-3.5" /> สร้าง
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {readOnly && (
+        <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+          มุมมองผู้บริหารเป็นแบบอ่านอย่างเดียว — ซ่อนปุ่มสร้างงาน
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+function TimelineView({
+  range,
+  tasks: list,
+  onOpen,
+  empty,
+}: {
+  range: { label: string; start: string; end: string };
+  tasks: Task[];
+  onOpen: (t: Task) => void;
+  empty: boolean;
+}) {
+  const days = useMemo(() => {
+    const out: { iso: string; tasks: Task[] }[] = [];
+    const start = new Date(range.start + "T00:00:00");
+    const end = new Date(range.end + "T00:00:00");
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      out.push({ iso, tasks: list.filter((t) => t.dueDate === iso) });
+    }
+    return out;
+  }, [range.start, range.end, list]);
+
+  return (
+    <Panel title="ไทม์ไลน์" subtitle={`เรียงตามวันครบกำหนด · ${range.label}`} bodyClassName="p-0">
+      {empty ? (
+        <EmptyState />
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="flex min-w-max gap-3 p-4">
+            {days.map((day) => {
+              const d = new Date(day.iso + "T00:00:00");
+              return (
+                <div key={day.iso} className="flex w-[180px] shrink-0 flex-col">
+                  <div className="mb-2 border-b border-border pb-1.5 text-center">
+                    <div className="text-xs font-semibold">
+                      {d.toLocaleDateString("th-TH", { weekday: "short" })}
+                    </div>
+                    <div className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                      {fmtDate(day.iso)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {day.tasks.length === 0 ? (
+                      <div className="rounded-md border border-dashed border-border/70 py-3 text-center text-[11px] text-muted-foreground">
+                        —
+                      </div>
+                    ) : (
+                      day.tasks.map((t) => {
+                        const meta = statusMeta[t.status];
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => onOpen(t)}
+                            className={cn(
+                              "rounded-md border-l-2 bg-card p-2 text-left text-xs transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              meta.border,
+                              meta.bg,
+                            )}
+                            style={{ borderLeftColor: "currentColor" }}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", meta.dot)} />
+                              <span className={cn("truncate text-[10px] font-semibold uppercase", meta.text)}>
+                                {meta.label}
+                              </span>
+                            </div>
+                            <div className="mt-1 line-clamp-2 font-medium text-foreground">{t.name}</div>
+                            <div className="mt-0.5 text-[10px] text-muted-foreground">{t.client}</div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function RecurringView({
+  readOnly,
+  scopedMemberIds,
+}: {
+  readOnly: boolean;
+  scopedMemberIds: Set<string>;
+}) {
+  const list = recurringTasks.filter((r) => scopedMemberIds.has(r.assigneeId));
+  return (
+    <Panel
+      title="งานที่เกิดซ้ำ"
+      subtitle={`${list.length} เทมเพลตที่ตั้งเวลาไว้`}
+      bodyClassName="p-0"
+      actions={
+        !readOnly ? (
+          <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => toast.success("เพิ่มงานที่เกิดซ้ำ")}>
+            <Plus className="h-3.5 w-3.5" /> เพิ่ม
+          </Button>
+        ) : undefined
+      }
+    >
+      {list.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          {list.map((r) => {
+            const member = members.find((m) => m.id === r.assigneeId);
+            const prio = priorityMeta[r.priority];
+            return (
+              <div key={r.id} className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="text-sm font-semibold leading-snug text-pretty">{r.name}</h4>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-info/30 bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">
+                    <Repeat className="h-3 w-3" />
+                    {cadenceLabel[r.cadence]}
+                  </span>
+                </div>
+                <span className="mt-2 inline-flex w-fit items-center rounded border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
+                  {r.client}
+                </span>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    ครั้งถัดไป {fmtDate(r.nextRun)}
+                  </span>
+                  <span className="truncate">{member?.name}</span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded border px-1.5 py-0.5 font-semibold",
+                      prio.bg,
+                      prio.border,
+                      prio.text,
+                    )}
+                  >
+                    {prio.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function TaskDetail({ task, member, readOnly }: { task: Task; member: Member; readOnly: boolean }) {
+  const meta = statusMeta[task.status];
+  const prio = priorityMeta[task.priority];
   return (
     <>
       <SheetHeader>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
               meta.bg,
               meta.border,
               meta.text,
@@ -759,6 +1173,17 @@ function TaskDetail({
           >
             <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
             {meta.label}
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+              prio.bg,
+              prio.border,
+              prio.text,
+            )}
+          >
+            <Flag className="h-3 w-3" />
+            ความสำคัญ{prio.label}
           </span>
         </div>
         <SheetTitle className="text-left text-lg leading-snug">{task.name}</SheetTitle>
@@ -768,44 +1193,53 @@ function TaskDetail({
       <div className="mt-6 space-y-5">
         <dl className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <dt className="text-xs text-muted-foreground">Assignee</dt>
+            <dt className="text-xs text-muted-foreground">ผู้รับผิดชอบ</dt>
             <dd className="mt-0.5 font-medium">{member.name}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Client</dt>
+            <dt className="text-xs text-muted-foreground">ลูกค้า</dt>
             <dd className="mt-0.5 font-medium">{task.client}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Start date</dt>
+            <dt className="text-xs text-muted-foreground">วันเริ่ม</dt>
             <dd className="mt-0.5 font-mono text-xs tabular-nums">{fmtDate(task.startDate)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Due date</dt>
+            <dt className="text-xs text-muted-foreground">วันครบกำหนด</dt>
             <dd className="mt-0.5 font-mono text-xs tabular-nums">{fmtDate(task.dueDate)}</dd>
           </div>
         </dl>
 
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Description
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <span>งานย่อย</span>
+            <span className="tabular-nums">
+              {task.subDone}/{task.subTotal}
+            </span>
           </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${task.subTotal ? (task.subDone / task.subTotal) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">รายละเอียด</div>
           <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{task.description}</p>
         </div>
 
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Activity
-          </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">กิจกรรม</div>
           {task.activity.length === 0 ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">No activity yet.</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">ยังไม่มีกิจกรรม</p>
           ) : (
             <ol className="mt-2 space-y-3 border-l border-border pl-4">
               {task.activity.map((a, i) => (
                 <li key={i} className="relative">
                   <span className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-primary" />
-                  <div className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                    {a.at}
-                  </div>
+                  <div className="font-mono text-[11px] tabular-nums text-muted-foreground">{a.at}</div>
                   <div className="text-sm">{a.text}</div>
                 </li>
               ))}
@@ -813,47 +1247,53 @@ function TaskDetail({
           )}
         </div>
 
-        {!readOnly && (
+        {readOnly ? (
+          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            มุมมองผู้บริหารเป็นแบบอ่านอย่างเดียว ซ่อนการแก้ไข
+          </p>
+        ) : (
           <div className="flex gap-2 pt-2">
-            <Button size="sm" className="flex-1">
-              Update status
+            <Button size="sm" className="flex-1" onClick={() => toast.success("อัปเดตสถานะแล้ว")}>
+              อัปเดตสถานะ
             </Button>
-            <Button size="sm" variant="outline" className="flex-1">
-              Reassign
+            <Button size="sm" variant="outline" className="flex-1" onClick={() => toast.success("มอบหมายใหม่แล้ว")}>
+              มอบหมายใหม่
             </Button>
           </div>
-        )}
-        {readOnly && (
-          <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            Executive view is read-only. Editing actions are hidden.
-          </p>
         )}
       </div>
     </>
   );
 }
 
-function MainSkeleton() {
+function BoardSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-lg border border-border bg-card p-4">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="mt-3 h-8 w-10" />
           </div>
         ))}
       </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="mt-3 h-3 w-full" />
-        <Skeleton className="mt-2 h-3 w-11/12" />
-        <Skeleton className="mt-2 h-3 w-9/12" />
-      </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="mb-3 h-8 w-full" />
-        ))}
+      <div className="flex flex-col gap-4 xl:flex-row">
+        <div className="min-w-0 flex-1 space-y-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4">
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="mt-4 h-14 w-full" />
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <Skeleton key={j} className="h-32 w-full" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="w-full shrink-0 xl:w-[320px]">
+          <Skeleton className="h-80 w-full" />
+        </div>
       </div>
     </div>
   );
@@ -865,10 +1305,8 @@ function EmptyState() {
       <div className="grid h-11 w-11 place-items-center rounded-full bg-muted">
         <CalendarDays className="h-5 w-5 text-muted-foreground" />
       </div>
-      <p className="text-sm font-medium">No tasks in this range</p>
-      <p className="text-xs text-muted-foreground">
-        Try selecting a different date range for this member.
-      </p>
+      <p className="text-sm font-medium">ไม่มีงานในช่วงนี้</p>
+      <p className="text-xs text-muted-foreground">ลองเลือกช่วงเวลาอื่นหรือปรับบทบาทการดู</p>
     </div>
   );
 }
@@ -880,13 +1318,11 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         <AlertCircle className="h-5 w-5 text-destructive" />
       </div>
       <div>
-        <p className="text-sm font-medium">Couldn&apos;t load tasks</p>
-        <p className="text-xs text-muted-foreground">
-          There was a problem fetching this member&apos;s workload.
-        </p>
+        <p className="text-sm font-medium">โหลดงานไม่สำเร็จ</p>
+        <p className="text-xs text-muted-foreground">เกิดปัญหาในการดึงข้อมูลภาระงานของทีม</p>
       </div>
       <Button size="sm" variant="outline" className="gap-2" onClick={onRetry}>
-        <RefreshCw className="h-3.5 w-3.5" /> Retry
+        <RefreshCw className="h-3.5 w-3.5" /> ลองใหม่
       </Button>
     </div>
   );
@@ -901,36 +1337,34 @@ function buildSummary(
   rangeLabel: string,
 ): string {
   if (memberTasks.length === 0) {
-    return `${member.name} has no tasks scheduled for ${rangeLabel}. Consider assigning upcoming work or reviewing a wider date range.`;
+    return `${member.name} ยังไม่มีงานในช่วง ${rangeLabel} — พิจารณามอบหมายงานหรือดูช่วงเวลาที่กว้างขึ้น`;
   }
   const overdue = memberTasks.filter((t) => t.status === "overdue");
   const inProgress = memberTasks.filter((t) => t.status === "in-progress");
   const parts: string[] = [];
 
   parts.push(
-    `During ${rangeLabel}, ${member.name} has ${memberTasks.length} tracked task${
-      memberTasks.length === 1 ? "" : "s"
-    }: ${counts.completed} completed, ${counts["in-progress"]} in progress, ${counts.overdue} overdue, and ${counts.upcoming} upcoming.`,
+    `ในช่วง ${rangeLabel} ${member.name} มีงานที่ติดตาม ${memberTasks.length} รายการ: เสร็จ ${counts.completed} · กำลังดำเนินการ ${counts["in-progress"]} · เกินกำหนด ${counts.overdue} · กำลังจะถึง ${counts.upcoming}`,
   );
 
   if (inProgress.length > 0) {
     parts.push(
-      `Active work centers on "${inProgress[0].name}" for ${inProgress[0].client}${
-        inProgress.length > 1 ? ` and ${inProgress.length - 1} other item${inProgress.length - 1 === 1 ? "" : "s"}` : ""
-      }.`,
+      `งานที่กำลังทำอยู่หลักคือ “${inProgress[0].name}” ของ ${inProgress[0].client}${
+        inProgress.length > 1 ? ` และอีก ${inProgress.length - 1} รายการ` : ""
+      }`,
     );
   }
 
   if (overdue.length > 0) {
     parts.push(
-      `Needs attention: ${overdue.length} overdue item${overdue.length === 1 ? "" : "s"}, most critically "${overdue[0].name}" (${overdue[0].client}), due ${fmtDate(overdue[0].dueDate)}.`,
+      `ต้องให้ความสำคัญ: มีงานเกินกำหนด ${overdue.length} รายการ โดยเฉพาะ “${overdue[0].name}” (${overdue[0].client}) ครบกำหนด ${fmtDate(overdue[0].dueDate)}`,
     );
   } else {
-    parts.push("No overdue items — workload is on track.");
+    parts.push("ไม่มีงานเกินกำหนด — ภาระงานอยู่ในเกณฑ์ปกติ");
   }
 
   if (counts.upcoming > 0) {
-    parts.push(`${counts.upcoming} upcoming task${counts.upcoming === 1 ? "" : "s"} should be prioritized next.`);
+    parts.push(`มีงานกำลังจะถึง ${counts.upcoming} รายการที่ควรจัดลำดับความสำคัญต่อไป`);
   }
 
   return parts.join(" ");
