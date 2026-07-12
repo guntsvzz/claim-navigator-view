@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import { Radio, PenLine, CircleDashed, Info } from "lucide-react";
+import { Radio, PenLine, Sparkles } from "lucide-react";
 
-export type Readiness = "live" | "manual" | "none";
+export type Readiness = "live" | "manual" | "ai";
 
 const meta: Record<
   Readiness,
@@ -17,10 +17,10 @@ const meta: Record<
     className: "bg-info/15 text-info border-info/30",
     icon: PenLine,
   },
-  none: {
-    label: "No source yet",
-    className: "border-dashed border-border bg-muted/50 text-muted-foreground",
-    icon: CircleDashed,
+  ai: {
+    label: "AI",
+    className: "bg-primary/15 text-primary border-primary/30",
+    icon: Sparkles,
   },
 };
 
@@ -65,32 +65,9 @@ export function ReadinessLegend({ className }: { className?: string }) {
         <span>Entered by KAM / BD</span>
       </span>
       <span className="inline-flex items-center gap-1.5">
-        <ReadinessBadge state="none" />
-        <span>Data source not confirmed</span>
+        <ReadinessBadge state="ai" />
+        <span>AI-suggested</span>
       </span>
-    </div>
-  );
-}
-
-/** Muted strip shown at the top of a panel whose data has no confirmed source. */
-export function SampleBanner({
-  label = "Sample layout — no confirmed data source. ยังไม่มีแหล่งข้อมูล · pending data source.",
-  tone = "none",
-}: {
-  label?: string;
-  tone?: "none" | "illustrative";
-}) {
-  return (
-    <div
-      className={cn(
-        "mb-3 flex items-start gap-2 rounded-md border border-dashed px-3 py-2 text-[11px] leading-relaxed",
-        tone === "illustrative"
-          ? "border-warning/40 bg-warning/10 text-warning"
-          : "border-border bg-muted/40 text-muted-foreground",
-      )}
-    >
-      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      <span>{label}</span>
     </div>
   );
 }
