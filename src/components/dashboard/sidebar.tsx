@@ -7,6 +7,7 @@ import {
   Briefcase,
   Users,
   Share2,
+  ShieldAlert,
   ListTodo,
   UsersRound,
   Workflow,
@@ -21,6 +22,7 @@ const primaryNav = [
   { key: "executive", label: "Executive Dashboard", icon: Briefcase, to: "/executive" },
   { key: "account", label: "Account 360", icon: Users, to: "/account-360" },
   { key: "social", label: "Social Listener", icon: Share2, to: "/social-listener" },
+  { key: "fraud", label: "Fraud Analysis", icon: ShieldAlert, to: "/fraud-analysis" },
   { key: "task", label: "Task", icon: ListTodo, to: "/task" },
 ] as const;
 
