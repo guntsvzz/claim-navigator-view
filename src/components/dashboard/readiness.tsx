@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 import { Radio, PenLine, Sparkles } from "lucide-react";
 
-export type Readiness = "live" | "manual" | "ai";
+export type Readiness = "live" | "manual" | "ai" | "none";
 
 const meta: Record<
-  Readiness,
+  "live" | "manual" | "ai",
   { label: string; className: string; icon: typeof Radio }
 > = {
   live: {
@@ -31,6 +31,7 @@ export function ReadinessBadge({
   state: Readiness;
   className?: string;
 }) {
+  if (state === "none") return null;
   const m = meta[state];
   const Icon = m.icon;
   return (
