@@ -8,7 +8,6 @@ import {
   Users,
   Share2,
   ShieldAlert,
-  SlidersHorizontal,
   ListTodo,
   BellRing,
   UsersRound,
@@ -25,7 +24,6 @@ const primaryNav = [
   { key: "account", label: "Account 360", icon: Users, to: "/account-360" },
   { key: "social", label: "Social Listener", icon: Share2, to: "/social-listener" },
   { key: "fraud", label: "Fraud Analysis", icon: ShieldAlert, to: "/fraud-analysis" },
-  { key: "fraud-settings", label: "Fraud Settings", icon: SlidersHorizontal, to: "/fraud-settings" },
   { key: "task", label: "Task", icon: ListTodo, to: "/task" },
   { key: "kpi", label: "KPI & Alerts", icon: BellRing, to: "/kpi-alerts" },
 ] as const;

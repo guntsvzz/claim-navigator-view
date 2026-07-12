@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TaskRouteImport } from './routes/task'
 import { Route as SocialListenerRouteImport } from './routes/social-listener'
 import { Route as KpiAlertsRouteImport } from './routes/kpi-alerts'
-import { Route as FraudSettingsRouteImport } from './routes/fraud-settings'
 import { Route as FraudAnalysisRouteImport } from './routes/fraud-analysis'
 import { Route as ExecutiveRouteImport } from './routes/executive'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,11 +29,6 @@ const SocialListenerRoute = SocialListenerRouteImport.update({
 const KpiAlertsRoute = KpiAlertsRouteImport.update({
   id: '/kpi-alerts',
   path: '/kpi-alerts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FraudSettingsRoute = FraudSettingsRouteImport.update({
-  id: '/fraud-settings',
-  path: '/fraud-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FraudAnalysisRoute = FraudAnalysisRouteImport.update({
@@ -57,7 +51,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
-  '/fraud-settings': typeof FraudSettingsRoute
   '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
   '/task': typeof TaskRoute
@@ -66,7 +59,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
-  '/fraud-settings': typeof FraudSettingsRoute
   '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
   '/task': typeof TaskRoute
@@ -76,7 +68,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/executive': typeof ExecutiveRoute
   '/fraud-analysis': typeof FraudAnalysisRoute
-  '/fraud-settings': typeof FraudSettingsRoute
   '/kpi-alerts': typeof KpiAlertsRoute
   '/social-listener': typeof SocialListenerRoute
   '/task': typeof TaskRoute
@@ -87,7 +78,6 @@ export interface FileRouteTypes {
     | '/'
     | '/executive'
     | '/fraud-analysis'
-    | '/fraud-settings'
     | '/kpi-alerts'
     | '/social-listener'
     | '/task'
@@ -96,7 +86,6 @@ export interface FileRouteTypes {
     | '/'
     | '/executive'
     | '/fraud-analysis'
-    | '/fraud-settings'
     | '/kpi-alerts'
     | '/social-listener'
     | '/task'
@@ -105,7 +94,6 @@ export interface FileRouteTypes {
     | '/'
     | '/executive'
     | '/fraud-analysis'
-    | '/fraud-settings'
     | '/kpi-alerts'
     | '/social-listener'
     | '/task'
@@ -115,7 +103,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExecutiveRoute: typeof ExecutiveRoute
   FraudAnalysisRoute: typeof FraudAnalysisRoute
-  FraudSettingsRoute: typeof FraudSettingsRoute
   KpiAlertsRoute: typeof KpiAlertsRoute
   SocialListenerRoute: typeof SocialListenerRoute
   TaskRoute: typeof TaskRoute
@@ -142,13 +129,6 @@ declare module '@tanstack/react-router' {
       path: '/kpi-alerts'
       fullPath: '/kpi-alerts'
       preLoaderRoute: typeof KpiAlertsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/fraud-settings': {
-      id: '/fraud-settings'
-      path: '/fraud-settings'
-      fullPath: '/fraud-settings'
-      preLoaderRoute: typeof FraudSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fraud-analysis': {
@@ -179,7 +159,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExecutiveRoute: ExecutiveRoute,
   FraudAnalysisRoute: FraudAnalysisRoute,
-  FraudSettingsRoute: FraudSettingsRoute,
   KpiAlertsRoute: KpiAlertsRoute,
   SocialListenerRoute: SocialListenerRoute,
   TaskRoute: TaskRoute,
