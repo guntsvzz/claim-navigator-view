@@ -350,16 +350,17 @@ export function ClientDetail({
                     position: "insideTopRight",
                   }}
                 />
-                {monthMode === "passfail" ? (
-                  <>
-                    <Bar yAxisId="left" dataKey="pass" name="Pass" stackId="a" fill="var(--color-success)" radius={[0, 0, 0, 0]} />
-                    <Bar yAxisId="left" dataKey="notPass" name="Not Pass" stackId="a" fill="var(--color-destructive)" radius={[3, 3, 0, 0]} />
-                  </>
-                ) : (
-                  <>
-                    <Bar yAxisId="left" dataKey="complicate" name="Complicate" stackId="a" fill="var(--color-warning)" />
-                    <Bar yAxisId="left" dataKey="nonComplicate" name="Non-Complicate" stackId="a" fill="var(--color-info)" radius={[3, 3, 0, 0]} />
-                  </>
+                {monthMode === "passfail" && (
+                  <Bar yAxisId="left" dataKey="pass" name="Pass" stackId="a" fill="var(--color-success)" radius={[0, 0, 0, 0]} />
+                )}
+                {monthMode === "passfail" && (
+                  <Bar yAxisId="left" dataKey="notPass" name="Not Pass" stackId="a" fill="var(--color-destructive)" radius={[3, 3, 0, 0]} />
+                )}
+                {monthMode === "casetype" && (
+                  <Bar yAxisId="left" dataKey="complicate" name="Complicate" stackId="a" fill="var(--color-warning)" />
+                )}
+                {monthMode === "casetype" && (
+                  <Bar yAxisId="left" dataKey="nonComplicate" name="Non-Complicate" stackId="a" fill="var(--color-info)" radius={[3, 3, 0, 0]} />
                 )}
                 <Area
                   yAxisId="right"

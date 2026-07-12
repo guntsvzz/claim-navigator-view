@@ -375,6 +375,8 @@ export interface SlaComputed {
   complicate: number;
   nonComplicate: number;
   health: SlaHealth;
+  /** raw period buckets for this SLA (used by the Period table + CSV export) */
+  bucketsRef: PeriodBucket[];
 }
 
 /** Derive all target-dependent metrics for one in-contract SLA. */
@@ -400,6 +402,7 @@ export function computeSla(client: Client, slaId: SlaId): SlaComputed | null {
     complicate,
     nonComplicate: total - complicate,
     health: healthFromPct(passPct, target.passTargetPct),
+    bucketsRef: data.buckets,
   };
 }
 
@@ -525,7 +528,7 @@ const CLIENT_SEEDS: ClientSeed[] = [
     tag: "insurer",
     trendDelta: 2.1,
     targets: {
-      faxClaim: { target: 20, unit: "mins", passTargetPct: 90 },
+      faxClaim: { target: 25, unit: "mins", passTargetPct: 90 },
       preArrangement: { target: 2, unit: "days", passTargetPct: 88 },
       creditClaim: { target: 14, unit: "days", passTargetPct: 90 },
       reimbursement: { target: 45, unit: "days", passTargetPct: 85 },
