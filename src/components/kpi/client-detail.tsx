@@ -67,6 +67,7 @@ import {
   type SlaComputed,
   type SlaId,
 } from "@/lib/sla-data";
+import { getSlaView } from "@/lib/sla-claims";
 
 /* ============================================================================
  * ClientDetail — BVTPA "Claim Analysis Performance" report layout
@@ -100,14 +101,15 @@ export function ClientDetail({
   const [thresholdOpen, setThresholdOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [monthMode, setMonthMode] = useState<"byMonth" | "byCaseType">("byMonth");
-  // For "by Case Type" mode — which month to show (default = latest month)
-  const [caseTypeMonth, setCaseTypeMonth] = useState<string>(() => {
-    const data = client.data[selectedSla];
-    return data?.monthly ? data.monthly[data.monthly.length - 1].month : "Jan";
-  });
+  // For "by Case Type" mode — which month to show (default = latest month with data)
+  const [caseTypeMonth, setCaseTypeMonth] = useState<string>("Dec");
 
   if (!sla) return <EmptyDetail clientName={client.name} onBack={onBack} />;
 
+  // Derive all UI data from claims array via getSlaView
+  const slaView = useMemo(() => getSlaView(sla.slaId, client.id), [sla.slaId, client.id]);
+
+  // Fallback to old data for alerts/forecasts (which we keep from existing SlaData)
   const data = client.data[sla.slaId]!;
   const unit = sla.target.unit;
   const targetPct = sla.target.passTargetPct;
@@ -118,14 +120,14 @@ export function ClientDetail({
   const forecastHealth = healthFromPct(forecastEnd, targetPct);
   const forecastRisk = riskFromHealth(forecastHealth);
 
-  // Monthly chart — "by Month" mode: all 12 months stacked
+  // Monthly chart — "by Month" mode: all 12 months stacked (derived from claims via slaView)
   const byMonthData = useMemo(() => {
-    const rows = data.monthly.map((m) => ({
+    const rows = slaView.monthly.map((m) => ({
       month: m.month,
       pass: m.pass,
       notPass: m.notPass,
       passPct: m.passPct,
-      total: m.pass + m.notPass,
+      total: m.total,
       target: targetPct,
       forecast: null as number | null,
       band: undefined as [number, number] | undefined,
@@ -148,39 +150,35 @@ export function ClientDetail({
       });
     });
     return rows;
-  }, [data.monthly, futures, targetPct]);
+  }, [slaView.monthly, futures, targetPct]);
 
-  // Monthly chart — "by Case Type" mode: 2 bars for the selected month
+  // Monthly chart — "by Case Type" mode: 2 bars for the selected month (derived from claims)
   const byCaseTypeData = useMemo(() => {
-    const m = data.monthly.find((x) => x.month === caseTypeMonth) ?? data.monthly[0];
-    if (!m) return [];
-    const cTotal = m.complicate;
-    const ncTotal = m.nonComplicate;
-    // split pass/notPass proportionally
-    const cPass = Math.round(m.pass * (cTotal / (cTotal + ncTotal || 1)));
-    const ncPass = m.pass - cPass;
+    const monthNum = slaView.monthly.findIndex((m) => m.month === caseTypeMonth) + 1;
+    if (monthNum < 1) return [];
+    const caseData = slaView.caseTypeByMonth(monthNum);
     return [
       {
         name: "Complicate",
-        pass: cPass,
-        notPass: cTotal - cPass,
-        passPct: cTotal ? round1((cPass / cTotal) * 100) : 0,
-        total: cTotal,
+        pass: caseData.complicate.pass,
+        notPass: caseData.complicate.notPass,
+        passPct: caseData.complicate.passPct,
+        total: caseData.complicate.total,
       },
       {
         name: "Non-Complicate",
-        pass: ncPass,
-        notPass: ncTotal - ncPass,
-        passPct: ncTotal ? round1((ncPass / ncTotal) * 100) : 0,
-        total: ncTotal,
+        pass: caseData.nonComplicate.pass,
+        notPass: caseData.nonComplicate.notPass,
+        passPct: caseData.nonComplicate.passPct,
+        total: caseData.nonComplicate.total,
       },
     ];
-  }, [data.monthly, caseTypeMonth]);
+  }, [slaView, caseTypeMonth]);
 
   // Donut data — uses donutTotal (= total − backlog), not total
   const donutData = [
-    { name: "Complicate",     value: sla.complicate    },
-    { name: "Non-Complicate", value: sla.nonComplicate },
+    { name: "Complicate",     value: slaView.complicate    },
+    { name: "Non-Complicate", value: slaView.nonComplicate },
   ];
 
   return (
@@ -256,30 +254,30 @@ export function ClientDetail({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
 
-          {/* A) FOUR SOLID SUMMARY TILES */}
+          {/* A) FOUR SOLID SUMMARY TILES (derived from claims) */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SolidTile
               color="#2563EB"
               label="No. of Claim"
-              value={fmt(sla.total)}
+              value={fmt(slaView.totalClaims)}
               sub="total in range"
             />
             <SolidTile
               color="#16a34a"
               label="Pass"
-              value={fmt(sla.pass)}
-              sub={`${sla.passPct}% of claims`}
+              value={fmt(slaView.passCount)}
+              sub={`${slaView.passPct}% of claims`}
             />
             <SolidTile
               color="#dc2626"
               label="Not Pass"
-              value={fmt(sla.notPass)}
-              sub={`${round1(100 - sla.passPct)}% of claims`}
+              value={fmt(slaView.notPassCount)}
+              sub={`${slaView.notPassPct}% of claims`}
             />
             <SolidTile
               color="#92400e"
               label="Backlog · ย้อนหลัง"
-              value={fmt(sla.backlog)}
+              value={fmt(slaView.backlogCount)}
               sub="awaiting closure"
             />
           </div>
@@ -306,7 +304,7 @@ export function ClientDetail({
                           const RADIAN = Math.PI / 180;
                           const rx = cx + (or + 18) * Math.cos(-midAngle * RADIAN);
                           const ry = cy + (or + 18) * Math.sin(-midAngle * RADIAN);
-                          const pct = sla.donutTotal > 0 ? round1((value / sla.donutTotal) * 100) : 0;
+                          const pct = slaView.donutTotal > 0 ? round1((value / slaView.donutTotal) * 100) : 0;
                           return (
                             <text x={rx} y={ry} textAnchor={rx > cx ? "start" : "end"} dominantBaseline="central" fontSize={10} fill="currentColor">
                               {`${fmt(value)} (${pct}%)`}
@@ -321,7 +319,7 @@ export function ClientDetail({
                       <Tooltip
                         contentStyle={tooltipStyle}
                         formatter={(v: number, n: string) => [
-                          `${fmt(v)} (${sla.donutTotal > 0 ? round1((v / sla.donutTotal) * 100) : 0}%)`,
+                          `${fmt(v)} (${slaView.donutTotal > 0 ? round1((v / slaView.donutTotal) * 100) : 0}%)`,
                           n,
                         ]}
                       />
@@ -329,16 +327,16 @@ export function ClientDetail({
                   </ResponsiveContainer>
                   {/* Center label */}
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-2xl font-bold tabular-nums">{fmt(sla.donutTotal)}</div>
+                    <div className="text-2xl font-bold tabular-nums">{fmt(slaView.donutTotal)}</div>
                     <div className="text-[10px] text-muted-foreground">total cases</div>
                   </div>
                 </div>
                 <div className="mt-2 space-y-1.5">
-                  <LegendRow color="#f97316" label="Complicate"     value={sla.complicate}    total={sla.donutTotal} />
-                  <LegendRow color="#3b82f6" label="Non-Complicate" value={sla.nonComplicate} total={sla.donutTotal} />
+                  <LegendRow color="#f97316" label="Complicate"     value={slaView.complicate}    total={slaView.donutTotal} />
+                  <LegendRow color="#3b82f6" label="Non-Complicate" value={slaView.nonComplicate} total={slaView.donutTotal} />
                 </div>
                 <p className="mt-3 text-[10px] text-muted-foreground">
-                  Total = No. of Claim ({fmt(sla.total)}) − Backlog ({fmt(sla.backlog)}) = {fmt(sla.donutTotal)}
+                  Total = No. of Claim ({fmt(slaView.totalClaims)}) − Backlog ({fmt(slaView.backlogCount)}) = {fmt(slaView.donutTotal)}
                 </p>
               </div>
             </div>
@@ -577,10 +575,10 @@ function SectionBar({ title }: { title: string }) {
  * ========================================================================== */
 
 function PeriodTable({ sla }: { sla: SlaComputed }) {
-  const buckets = sla.bucketsRef;
-  const totalComp = buckets.reduce((a, b) => a + b.complicate, 0);
-  const totalNon  = buckets.reduce((a, b) => a + b.nonComplicate, 0);
-  const grand     = totalComp + totalNon;
+  // Derive totals from claims via slaView
+  const totalComp = slaView.complicate;
+  const totalNon  = slaView.nonComplicate;
+  const grand     = slaView.donutTotal;
 
   return (
     <div className="overflow-x-auto">
@@ -604,9 +602,8 @@ function PeriodTable({ sla }: { sla: SlaComputed }) {
           </tr>
         </thead>
         <tbody>
-          {buckets.map((b) => {
-            const rowTotal = b.complicate + b.nonComplicate;
-            const isPass   = b.upper <= sla.target.target;
+          {slaView.periodBuckets.map((b) => {
+            const isPass = b.upper <= sla.target.target;
             return (
               <tr key={b.label} className={cn("border-b border-border", isPass ? "bg-green-50/60 dark:bg-green-950/20" : "bg-red-50/40 dark:bg-red-950/10")}>
                 <td className="px-3 py-1.5 font-medium">
@@ -616,11 +613,11 @@ function PeriodTable({ sla }: { sla: SlaComputed }) {
                   </span>
                 </td>
                 <Td>{fmt(b.complicate)}</Td>
-                <Td muted>{pct(b.complicate, totalComp)}</Td>
+                <Td muted>{b.complicatePct}%</Td>
                 <Td border>{fmt(b.nonComplicate)}</Td>
-                <Td muted>{pct(b.nonComplicate, totalNon)}</Td>
-                <Td border>{fmt(rowTotal)}</Td>
-                <Td muted>{pct(rowTotal, grand)}</Td>
+                <Td muted>{b.nonComplicatePct}%</Td>
+                <Td border>{fmt(b.total)}</Td>
+                <Td muted>{b.totalPct}%</Td>
               </tr>
             );
           })}
