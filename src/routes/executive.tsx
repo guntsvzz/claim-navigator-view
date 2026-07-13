@@ -106,7 +106,7 @@ const serviceRenewals: {
   { service: "Mobile App", status: "Active", expiry: "31 Dec 2026" },
   { service: "Pre-Authorization", status: "Active", expiry: "30 Jun 2026" },
   { service: "Provider Network", status: "Active", expiry: "31 Dec 2026" },
-  { service: "Telemedicine Add-on", status: "Inactive", expiry: "—" },
+  { service: "Telemedicine Add-on", status: "Inactive", expiry: "31 Dec 2024" },
 ];
 
 // LIVE — from complaints/ticketing system
@@ -446,16 +446,18 @@ function ExecutivePage() {
                 ? "bg-primary/15 text-primary"
                 : m.status === "upcoming"
                   ? "bg-warning/15 text-warning"
-                  : "bg-success/15 text-success";
+                  : null;
             return (
               <li key={m.date} className="relative">
                 <span className={cn("absolute -left-[30px] top-1.5 h-3 w-3 rounded-full", dot)} />
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">{m.date}</span>
-                    <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", badge)}>
-                      {m.status}
-                    </span>
+                    {badge && (
+                      <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", badge)}>
+                        {m.status}
+                      </span>
+                    )}
                   </div>
                   <span className="text-sm font-semibold">{m.label}</span>
                 </div>
@@ -501,7 +503,12 @@ function ExecutivePage() {
                     {r.status}
                   </span>
                 </td>
-                <td className="py-2.5 text-right font-mono tabular-nums text-muted-foreground">{r.expiry}</td>
+                <td className={cn("py-2.5 text-right font-mono tabular-nums", r.status === "Inactive" ? "text-destructive" : "text-muted-foreground")}>
+                  {r.expiry}
+                  {r.status === "Inactive" && r.expiry !== "—" && (
+                    <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider">(expired)</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -645,7 +652,7 @@ function ExecutivePage() {
       </div>
       <Panel
         title="Seasonality Trend"
-        subtitle="Monthly revenue % of annual"
+          subtitle="Monthly revenue of annual"
         actions={<ReadinessBadge state="sample" />}
       >
         <ResponsiveContainer width="100%" height={200}>
