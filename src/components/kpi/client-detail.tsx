@@ -318,7 +318,7 @@ export function ClientDetail({
                       <Tooltip
                         contentStyle={tooltipStyle}
                         formatter={(v: number, n: string) => [
-                          `${fmt(v)} (${slaView.donutTotal > 0 ? round1((v / slaView.donutTotal) * 100) : 0}%)`,
+                          `${fmt(v)} (${sla.donutTotal > 0 ? round1((v / sla.donutTotal) * 100) : 0}%)`,
                           n,
                         ]}
                       />
@@ -326,16 +326,16 @@ export function ClientDetail({
                   </ResponsiveContainer>
                   {/* Center label */}
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-2xl font-bold tabular-nums">{fmt(slaView.donutTotal)}</div>
+                    <div className="text-2xl font-bold tabular-nums">{fmt(sla.donutTotal)}</div>
                     <div className="text-[10px] text-muted-foreground">total cases</div>
                   </div>
                 </div>
                 <div className="mt-2 space-y-1.5">
-                  <LegendRow color="#f97316" label="Complicate"     value={slaView.complicate}    total={slaView.donutTotal} />
-                  <LegendRow color="#3b82f6" label="Non-Complicate" value={slaView.nonComplicate} total={slaView.donutTotal} />
+                <LegendRow color="#f97316" label="Complicate"     value={sla.complicate}    total={sla.donutTotal} />
+                <LegendRow color="#3b82f6" label="Non-Complicate" value={sla.nonComplicate} total={sla.donutTotal} />
                 </div>
                 <p className="mt-3 text-[10px] text-muted-foreground">
-                  Total = No. of Claim ({fmt(slaView.totalClaims)}) − Backlog ({fmt(slaView.backlogCount)}) = {fmt(slaView.donutTotal)}
+                  Total = No. of Claim ({fmt(sla.total)}) − Backlog ({fmt(sla.backlog)}) = {fmt(sla.donutTotal)}
                 </p>
               </div>
             </div>
@@ -574,10 +574,10 @@ function SectionBar({ title }: { title: string }) {
  * ========================================================================== */
 
 function PeriodTable({ sla }: { sla: SlaComputed }) {
-  // Derive totals from claims via slaView
-  const totalComp = slaView.complicate;
-  const totalNon  = slaView.nonComplicate;
-  const grand     = slaView.donutTotal;
+  // Derive totals from claims
+  const totalComp = sla.complicate;
+  const totalNon  = sla.nonComplicate;
+  const grand     = sla.donutTotal;
 
   return (
     <div className="overflow-x-auto">
@@ -601,7 +601,7 @@ function PeriodTable({ sla }: { sla: SlaComputed }) {
           </tr>
         </thead>
         <tbody>
-          {slaView.periodBuckets.map((b) => {
+          {sla.bucketsRef.map((b) => {
             const isPass = b.upper <= sla.target.target;
             return (
               <tr key={b.label} className={cn("border-b border-border", isPass ? "bg-green-50/60 dark:bg-green-950/20" : "bg-red-50/40 dark:bg-red-950/10")}>
