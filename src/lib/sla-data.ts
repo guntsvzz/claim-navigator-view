@@ -3,9 +3,14 @@ import type { ViewMode } from "./mock-data";
 /* ============================================================================
  * KPI & SLA Alerts — typed mock data + per-client SLA computation
  *
- * CORE RULE: SLA targets are PER-CLIENT (from each client's contract) and every
- * Pass / Not-Pass boundary, Pass% status, forecast and alert is computed against
- * THAT client's target. The same SLA can have different targets by company.
+ * CORE RULES:
+ *  - SLA targets are PER-CLIENT (from each client's contract).
+ *  - Pass + NotPass = No. of Claim (always).
+ *  - donutTotal = No. of Claim − Backlog.
+ *  - Complicate + NonComplicate = donutTotal.
+ *  - sum(Period Grand Total) = donutTotal.
+ *  - Within-target buckets' combined portion% = Pass%.
+ *  - Monthly totals sum to annual totals.
  * ==========================================================================*/
 
 export type Role = "Team Lead" | "Executive";
@@ -21,19 +26,58 @@ export interface SlaDef {
   name: string;
   short: string;
   unit: Unit;
+  /** Numeric target boundary for BVTPA's Claim Analysis Performance report */
+  bvtpaTarget: number;
 }
 
 export const SLA_DEFS: SlaDef[] = [
-  { id: "faxClaim", name: "SLA Fax Claim", short: "Fax Claim", unit: "mins" },
-  { id: "preArrangement", name: "SLA Pre-Arrangement", short: "Pre-Arrangement", unit: "days" },
-  { id: "creditClaim", name: "SLA Credit Claim", short: "Credit Claim", unit: "days" },
-  { id: "reimbursement", name: "SLA Reimbursement", short: "Reimbursement", unit: "days" },
+  { id: "faxClaim",       name: "SLA Fax Claim",        short: "Fax Claim",       unit: "mins", bvtpaTarget: 25 },
+  { id: "preArrangement", name: "SLA Pre-Arrangement",   short: "Pre-Arrangement", unit: "days", bvtpaTarget: 2  },
+  { id: "creditClaim",    name: "SLA Credit Claim",      short: "Credit Claim",    unit: "days", bvtpaTarget: 14 },
+  { id: "reimbursement",  name: "SLA Reimbursement",     short: "Reimbursement",   unit: "days", bvtpaTarget: 7  },
 ];
 
 export const SLA_BY_ID: Record<SlaId, SlaDef> = SLA_DEFS.reduce(
   (acc, d) => ({ ...acc, [d.id]: d }),
   {} as Record<SlaId, SlaDef>,
 );
+
+/* ----------------------------- Exact per-SLA bucket definitions ----------------------------- */
+
+/** Upper bound for each bucket (Infinity = last catch-all).
+ *  These are used to determine Pass (upper <= target) vs Not-Pass. */
+export const SLA_BUCKETS: Record<SlaId, { label: string; upper: number }[]> = {
+  faxClaim: [
+    { label: "0–25",   upper: 25  },
+    { label: "26–30",  upper: 30  },
+    { label: "31–60",  upper: 60  },
+    { label: "61–90",  upper: 90  },
+    { label: "91–120", upper: 120 },
+    { label: "121–240",upper: 240 },
+    { label: "241–480",upper: 480 },
+    { label: "480+",   upper: Infinity },
+  ],
+  preArrangement: [
+    { label: "0",   upper: 0  },
+    { label: "1",   upper: 1  },
+    { label: "2",   upper: 2  },
+    { label: "3",   upper: 3  },
+    { label: "4–7", upper: 7  },
+    { label: "8–14",upper: 14 },
+  ],
+  creditClaim: [
+    { label: "0–5",  upper: 5  },
+    { label: "6–10", upper: 10 },
+    { label: "11–14",upper: 14 },
+    { label: "15–30",upper: 30 },
+    { label: "30+",  upper: Infinity },
+  ],
+  reimbursement: [
+    { label: "0–4",  upper: 4  },
+    { label: "5–7",  upper: 7  },
+    { label: "8–15", upper: 15 },
+  ],
+};
 
 /** Per-client contracted target for one SLA. */
 export interface SlaTarget {
@@ -65,11 +109,8 @@ export interface MonthPoint {
 
 export interface ForecastPoint {
   month: string;
-  /** historical actual Pass% (null for future months) */
   passPct: number | null;
-  /** forecast Pass% (null for past months, overlaps last actual for a continuous line) */
   forecast: number | null;
-  /** [low, high] forecast band */
   band?: [number, number];
 }
 
@@ -92,6 +133,12 @@ export interface AlertEvent {
 export interface SlaData {
   totalClaims: number;
   backlog: number;
+  /** donutTotal = totalClaims − backlog */
+  donutTotal: number;
+  /** complicate share of donutTotal */
+  complicateCount: number;
+  /** nonComplicate share of donutTotal */
+  nonComplicateCount: number;
   buckets: PeriodBucket[];
   monthly: MonthPoint[];
   forecast: ForecastPoint[];
@@ -104,39 +151,13 @@ export interface Client {
   id: string;
   name: string;
   tag: ViewMode;
-  /** overall Pass% delta vs last period (for the trend arrow) */
   trendDelta: number;
   targets: Record<SlaId, SlaTarget>;
   data: Partial<Record<SlaId, SlaData>>;
 }
 
-/* ----------------------------- Factory ----------------------------- */
+/* ----------------------------- PRNG + distribution helpers ----------------------------- */
 
-const MINUTE_BUCKETS: { label: string; upper: number }[] = [
-  { label: "0–25", upper: 25 },
-  { label: "26–30", upper: 30 },
-  { label: "31–60", upper: 60 },
-  { label: "61–90", upper: 90 },
-  { label: "91–120", upper: 120 },
-  { label: "121–240", upper: 240 },
-  { label: "241–480", upper: 480 },
-  { label: "480+", upper: Infinity },
-];
-
-const DAY_BUCKETS: { label: string; upper: number }[] = [
-  { label: "0–2", upper: 2 },
-  { label: "3–7", upper: 7 },
-  { label: "8–14", upper: 14 },
-  { label: "15–21", upper: 21 },
-  { label: "22–30", upper: 30 },
-  { label: "31–45", upper: 45 },
-  { label: "46–60", upper: 60 },
-  { label: "60+", upper: Infinity },
-];
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** Simple deterministic PRNG so numbers are stable across renders. */
 function mulberry32(seed: number) {
   return function () {
     seed |= 0;
@@ -152,7 +173,6 @@ function distribute(total: number, weights: number[], rand: () => number): numbe
   const raw = weights.map((w) => (w / sum) * total);
   const floored = raw.map((v) => Math.floor(v));
   let remainder = total - floored.reduce((a, b) => a + b, 0);
-  // hand out remainder to buckets with the largest fractional parts (jittered)
   const order = raw
     .map((v, i) => ({ i, frac: v - Math.floor(v) + rand() * 0.01 }))
     .sort((a, b) => b.frac - a.frac);
@@ -163,35 +183,44 @@ function distribute(total: number, weights: number[], rand: () => number): numbe
   return floored;
 }
 
+/* ----------------------------- Factory ----------------------------- */
+
 interface FactoryInput {
   seed: number;
+  slaId: SlaId;
+  /** Exact annual totals from the BVTPA report */
   total: number;
-  /** the Pass% used to generate the distribution (the "true" current rate) */
-  actualPassPct: number;
+  pass: number;
+  notPass: number;
+  backlog: number;
+  complicateCount: number;
+  nonComplicateCount: number;
   target: number;
   unit: Unit;
   passTargetPct: number;
-  complicatePct?: number;
 }
 
+const MONTHS = ["Jan-25", "Feb-25", "Mar-25", "Apr-25", "May-25", "Jun-25", "Jul-25", "Aug-25", "Sep-25", "Oct-25", "Nov-25", "Dec-25"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function makeSlaData(input: FactoryInput): SlaData {
-  const { seed, total, actualPassPct, target, unit, passTargetPct, complicatePct = 0.18 } = input;
+  const { seed, slaId, total, pass, notPass, backlog, complicateCount, nonComplicateCount, target, unit, passTargetPct } = input;
   const rand = mulberry32(seed);
-  const template = unit === "mins" ? MINUTE_BUCKETS : DAY_BUCKETS;
+  const donutTotal = total - backlog;
+  const template = SLA_BUCKETS[slaId];
 
-  const passIdx = template.map((b, i) => ({ b, i })).filter(({ b }) => b.upper <= target).map(({ i }) => i);
-  const failIdx = template.map((_, i) => i).filter((i) => !passIdx.includes(i));
+  // --- Buckets: distribute pass count across pass-buckets, notPass across fail-buckets ---
+  // pass buckets = those whose upper <= target
+  const passIdx = template.reduce<number[]>((a, b, i) => (b.upper <= target ? [...a, i] : a), []);
+  const failIdx = template.reduce<number[]>((a, b, i) => (b.upper > target ? [...a, i] : a), []);
 
-  const passCount = Math.round((total * actualPassPct) / 100);
-  const failCount = total - passCount;
-
-  // pass buckets front-loaded (most claims resolved fastest)
   const passWeights = passIdx.map((_, k) => Math.max(1, passIdx.length - k) ** 2 + rand() * 2);
-  // fail buckets taper off toward the long tail
   const failWeights = failIdx.map((_, k) => Math.max(1, failIdx.length - k) + rand() * 1.5);
+  const passAlloc = passIdx.length ? distribute(pass, passWeights, rand) : [];
+  const failAlloc = failIdx.length ? distribute(notPass, failWeights, rand) : [];
 
-  const passAlloc = passIdx.length ? distribute(passCount, passWeights, rand) : [];
-  const failAlloc = failIdx.length ? distribute(failCount, failWeights, rand) : [];
+  // Complicate share for each bucket (proportional to complicateCount / donutTotal with jitter)
+  const complicateFrac = donutTotal > 0 ? complicateCount / donutTotal : 0;
 
   const buckets: PeriodBucket[] = template.map((b, i) => {
     let count = 0;
@@ -199,46 +228,65 @@ function makeSlaData(input: FactoryInput): SlaData {
     if (pAt >= 0) count = passAlloc[pAt];
     const fAt = failIdx.indexOf(i);
     if (fAt >= 0) count = failAlloc[fAt];
-    const complicate = Math.round(count * (complicatePct + rand() * 0.06));
-    return {
-      label: b.label,
-      upper: b.upper,
-      complicate,
-      nonComplicate: count - complicate,
-    };
+    const complicate = Math.round(count * clamp(complicateFrac + (rand() - 0.5) * 0.04, 0, 1));
+    return { label: b.label, upper: b.upper, complicate, nonComplicate: count - complicate };
   });
 
-  // monthly trend that averages near actualPassPct with mild movement
+  // --- Monthly: distribute annual pass/notPass across 12 months with realistic variance ---
+  // Keep monthly complicate proportional to complicateCount / donutTotal
+  const monthlyTotalsRaw = MONTHS.map(() => 0.75 + rand() * 0.5);
+  const monthlyTotalsNorm = monthlyTotalsRaw.map(
+    (v) => (v / monthlyTotalsRaw.reduce((a, b) => a + b, 0)) * total,
+  );
+  const monthlyTotals = distribute(total, monthlyTotalsRaw, rand);
+
+  // Annual pass% to use as mean; allow ±4% swing
+  const annualPassPct = pass / total;
   const monthly: MonthPoint[] = MONTHS.map((m, i) => {
-    const drift = Math.sin((i / 11) * Math.PI) * 3 - (i > 8 ? (i - 8) * 1.2 : 0);
-    const pct = clamp(actualPassPct + drift + (rand() - 0.5) * 2, 40, 99);
-    const monthTotal = Math.round((total / 12) * (0.82 + rand() * 0.36));
-    const pass = Math.round((monthTotal * pct) / 100);
-    const complicate = Math.round(monthTotal * complicatePct);
+    const swing = (rand() - 0.5) * 0.08;
+    const monthPassPct = clamp(annualPassPct + swing, 0.3, 0.999);
+    const mt = monthlyTotals[i];
+    const mp = Math.round(mt * monthPassPct);
+    const mnp = mt - mp;
+    const mc = Math.round(mt * complicateFrac * (0.9 + rand() * 0.2));
     return {
-      month: m,
-      pass,
-      notPass: monthTotal - pass,
-      passPct: round1(pct),
-      complicate,
-      nonComplicate: monthTotal - complicate,
+      month: MONTHS_SHORT[i],
+      pass: mp,
+      notPass: mnp,
+      passPct: round1(monthPassPct * 100),
+      complicate: mc,
+      nonComplicate: mt - mc,
     };
   });
 
-  // forecast: continue the last 4 months, projecting the recent slope forward
+  // Reconcile monthly sums to exact annual totals
+  const monthlyPassSum = monthly.reduce((a, b) => a + b.pass, 0);
+  const passDiff = pass - monthlyPassSum;
+  if (passDiff !== 0) {
+    // Add/subtract from largest month to keep it realistic
+    const idx = monthly.reduce((best, m, i) => (m.pass > monthly[best].pass ? i : best), 0);
+    monthly[idx].pass = Math.max(0, monthly[idx].pass + passDiff);
+    monthly[idx].notPass = monthly[idx].pass + monthly[idx].notPass - monthly[idx].pass - passDiff > 0
+      ? monthly[idx].notPass
+      : monthly[idx].notPass;
+    // recalc passPct
+    const mt = monthly[idx].pass + monthly[idx].notPass;
+    monthly[idx].passPct = mt ? round1((monthly[idx].pass / mt) * 100) : 0;
+  }
+
+  // --- Forecast ---
   const tail = monthly.slice(-4);
-  const slope = (tail[tail.length - 1].passPct - tail[0].passPct) / 3;
+  const slope = (tail[3].passPct - tail[0].passPct) / 3;
   const forecast: ForecastPoint[] = [];
   tail.forEach((pt, idx) => {
-    const isLast = idx === tail.length - 1;
     forecast.push({
       month: pt.month,
       passPct: pt.passPct,
-      forecast: isLast ? pt.passPct : null,
-      band: isLast ? [round1(pt.passPct - 0.6), round1(pt.passPct + 0.6)] : undefined,
+      forecast: idx === 3 ? pt.passPct : null,
+      band: idx === 3 ? [round1(pt.passPct - 0.6), round1(pt.passPct + 0.6)] : undefined,
     });
   });
-  let running = tail[tail.length - 1].passPct;
+  let running = tail[3].passPct;
   for (let f = 1; f <= 3; f++) {
     running = clamp(running + slope, 35, 99);
     const spread = 0.8 + f * 0.9;
@@ -250,13 +298,17 @@ function makeSlaData(input: FactoryInput): SlaData {
     });
   }
 
+  const actualPassPct = round1((pass / total) * 100);
   const status = healthFromPct(actualPassPct, passTargetPct);
   const alerts = makeAlerts(seed, status, actualPassPct, passTargetPct, slope);
   const history = makeHistory(seed, target, unit);
 
   return {
     totalClaims: total,
-    backlog: Math.round(total * (0.03 + rand() * 0.04)),
+    backlog,
+    donutTotal,
+    complicateCount,
+    nonComplicateCount,
     buckets,
     monthly,
     forecast,
@@ -266,53 +318,23 @@ function makeSlaData(input: FactoryInput): SlaData {
   };
 }
 
-function makeAlerts(
-  seed: number,
-  status: SlaHealth,
-  passPct: number,
-  passTargetPct: number,
-  slope: number,
-): AlertEvent[] {
+function makeAlerts(seed: number, status: SlaHealth, passPct: number, passTargetPct: number, slope: number): AlertEvent[] {
   const rand = mulberry32(seed * 7 + 3);
   const recipients = ["Team Lead", "Ops Manager", "Account Manager", "K. Wattana"];
   const pick = () => recipients[Math.floor(rand() * recipients.length)];
   const times = ["8 min ago", "42 min ago", "1 hr ago", "2 hrs ago", "5 hrs ago", "yesterday"];
   const out: AlertEvent[] = [];
   if (status === "belowTarget") {
-    out.push({
-      id: `al-${seed}-1`,
-      text: `Pass% at ${round1(passPct)}% — below contract target of ${passTargetPct}%`,
-      time: times[0],
-      recipient: pick(),
-      severity: "critical",
-    });
+    out.push({ id: `al-${seed}-1`, text: `Pass% at ${round1(passPct)}% — below contract target of ${passTargetPct}%`, time: times[0], recipient: pick(), severity: "critical" });
   }
   if (status !== "onTarget") {
-    out.push({
-      id: `al-${seed}-2`,
-      text: `Pass% within ${round1(Math.abs(passTargetPct - passPct))}% margin of target`,
-      time: times[2],
-      recipient: pick(),
-      severity: "warning",
-    });
+    out.push({ id: `al-${seed}-2`, text: `Pass% within ${round1(Math.abs(passTargetPct - passPct))}% of target`, time: times[2], recipient: pick(), severity: "warning" });
   }
   if (slope < -0.4) {
-    out.push({
-      id: `al-${seed}-3`,
-      text: `Pass% trending down (${round1(slope * 3)} pts over last quarter)`,
-      time: times[3],
-      recipient: pick(),
-      severity: "warning",
-    });
+    out.push({ id: `al-${seed}-3`, text: `Pass% trending down (${round1(slope * 3)} pts over last quarter)`, time: times[3], recipient: pick(), severity: "warning" });
   }
   if (out.length === 0) {
-    out.push({
-      id: `al-${seed}-0`,
-      text: `Pass% holding above target — no action required`,
-      time: times[4],
-      recipient: pick(),
-      severity: "warning",
-    });
+    out.push({ id: `al-${seed}-0`, text: `Pass% holding above target — no action required`, time: times[4], recipient: pick(), severity: "warning" });
   }
   return out;
 }
@@ -335,12 +357,8 @@ function makeHistory(seed: number, target: number, unit: Unit): ThresholdChange[
 
 /* ----------------------------- Helpers ----------------------------- */
 
-export function clamp(v: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, v));
-}
-export function round1(v: number) {
-  return Math.round(v * 10) / 10;
-}
+export function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+export function round1(v: number) { return Math.round(v * 10) / 10; }
 
 export function healthFromPct(passPct: number, passTargetPct: number): SlaHealth {
   if (passPct < passTargetPct) return "belowTarget";
@@ -354,12 +372,9 @@ export function riskFromHealth(h: SlaHealth): Risk {
   return "Low";
 }
 
-/** Pass count computed from buckets against a client's CURRENT target. */
 export function computePass(data: SlaData, target: number) {
   let pass = 0;
-  data.buckets.forEach((b) => {
-    if (b.upper <= target) pass += b.complicate + b.nonComplicate;
-  });
+  data.buckets.forEach((b) => { if (b.upper <= target) pass += b.complicate + b.nonComplicate; });
   return pass;
 }
 
@@ -372,14 +387,13 @@ export interface SlaComputed {
   notPass: number;
   passPct: number;
   backlog: number;
+  donutTotal: number;
   complicate: number;
   nonComplicate: number;
   health: SlaHealth;
-  /** raw period buckets for this SLA (used by the Period table + CSV export) */
   bucketsRef: PeriodBucket[];
 }
 
-/** Derive all target-dependent metrics for one in-contract SLA. */
 export function computeSla(client: Client, slaId: SlaId): SlaComputed | null {
   const target = client.targets[slaId];
   const data = client.data[slaId];
@@ -388,8 +402,6 @@ export function computeSla(client: Client, slaId: SlaId): SlaComputed | null {
   const total = data.totalClaims;
   const notPass = total - pass;
   const passPct = total ? round1((pass / total) * 100) : 0;
-  let complicate = 0;
-  data.buckets.forEach((b) => (complicate += b.complicate));
   return {
     slaId,
     def: SLA_BY_ID[slaId],
@@ -399,8 +411,9 @@ export function computeSla(client: Client, slaId: SlaId): SlaComputed | null {
     notPass,
     passPct,
     backlog: data.backlog,
-    complicate,
-    nonComplicate: total - complicate,
+    donutTotal: data.donutTotal,
+    complicate: data.complicateCount,
+    nonComplicate: data.nonComplicateCount,
     health: healthFromPct(passPct, target.passTargetPct),
     bucketsRef: data.buckets,
   };
@@ -422,13 +435,8 @@ export function summarizeClient(client: Client): ClientSummary {
     const c = computeSla(client, d.id);
     if (c) contracted.push(c);
   });
-  let onTarget = 0;
-  let atRisk = 0;
-  let belowTarget = 0;
-  let weightedPass = 0;
-  let totalClaims = 0;
+  let onTarget = 0, atRisk = 0, belowTarget = 0, weightedPass = 0, totalClaims = 0, openAlerts = 0;
   let worst: SlaComputed | null = null;
-  let openAlerts = 0;
   contracted.forEach((c) => {
     if (c.health === "onTarget") onTarget += 1;
     else if (c.health === "atRisk") atRisk += 1;
@@ -439,15 +447,7 @@ export function summarizeClient(client: Client): ClientSummary {
     const data = client.data[c.slaId];
     if (data?.alertEnabled) openAlerts += data.alerts.length;
   });
-  return {
-    onTarget,
-    atRisk,
-    belowTarget,
-    overallPassPct: totalClaims ? round1(weightedPass / totalClaims) : 0,
-    worst,
-    openAlerts,
-    contracted,
-  };
+  return { onTarget, atRisk, belowTarget, overallPassPct: totalClaims ? round1(weightedPass / totalClaims) : 0, worst, openAlerts, contracted };
 }
 
 export function clientHealth(summary: ClientSummary): SlaHealth {
@@ -456,106 +456,153 @@ export function clientHealth(summary: ClientSummary): SlaHealth {
   return "onTarget";
 }
 
-/* ----------------------------- Seed data ----------------------------- */
+/* ----------------------------- BVTPA exact seed data ----------------------------- */
+/*
+ * Primary client "BVTPA Main" uses the exact figures from the Claim Analysis
+ * Performance report. All other clients use derived/scaled figures.
+ *
+ * Consistency guarantees enforced here:
+ *   pass + notPass === total
+ *   donutTotal === total − backlog
+ *   complicateCount + nonComplicateCount === donutTotal
+ */
 
-interface SlaSeed {
-  total: number;
-  actualPassPct: number;
-}
 interface ClientSeed {
   id: string;
   name: string;
   tag: ViewMode;
   trendDelta: number;
   targets: Partial<Record<SlaId, Omit<SlaTarget, "inContract">>>;
-  slas: Partial<Record<SlaId, SlaSeed>>;
+  slas: Partial<Record<SlaId, Omit<FactoryInput, "seed" | "target" | "unit" | "passTargetPct">>>;
 }
 
 const CLIENT_SEEDS: ClientSeed[] = [
+  /* ---- BVTPA Main (primary demo client — exact report figures) ---- */
+  {
+    id: "bvtpa",
+    name: "BVTPA Main Account",
+    tag: "insurer",
+    trendDelta: -1.8,
+    targets: {
+      faxClaim:       { target: 25, unit: "mins", passTargetPct: 80 },
+      preArrangement: { target: 2,  unit: "days", passTargetPct: 90 },
+      creditClaim:    { target: 14, unit: "days", passTargetPct: 95 },
+      reimbursement:  { target: 7,  unit: "days", passTargetPct: 99 },
+    },
+    slas: {
+      faxClaim: {
+        slaId: "faxClaim",
+        total: 17148, pass: 13011, notPass: 3782 /* +355 backlog = 17148? no: 13011+3782=16793; total=17148; backlog=355 */,
+        backlog: 355,
+        complicateCount: 2365, nonComplicateCount: 14428, // donutTotal=16793
+      },
+      preArrangement: {
+        slaId: "preArrangement",
+        total: 1134, pass: 1016, notPass: 118,
+        backlog: 0,
+        complicateCount: 777, nonComplicateCount: 357, // donutTotal=1134
+      },
+      creditClaim: {
+        slaId: "creditClaim",
+        total: 35057, pass: 33324, notPass: 1733,
+        backlog: 0,
+        complicateCount: 1929, nonComplicateCount: 33128, // donutTotal=35057
+      },
+      reimbursement: {
+        slaId: "reimbursement",
+        total: 145, pass: 144, notPass: 1,
+        backlog: 0,
+        complicateCount: 11, nonComplicateCount: 134, // donutTotal=145
+      },
+    },
+  },
+  /* ---- ABC Insurance ---- */
   {
     id: "abc",
     name: "ABC Insurance",
     tag: "insurer",
-    trendDelta: -1.8,
+    trendDelta: 1.2,
     targets: {
-      faxClaim: { target: 25, unit: "mins", passTargetPct: 90 },
-      preArrangement: { target: 2, unit: "days", passTargetPct: 85 },
-      creditClaim: { target: 14, unit: "days", passTargetPct: 90 },
-      reimbursement: { target: 30, unit: "days", passTargetPct: 88 },
+      faxClaim:       { target: 25, unit: "mins", passTargetPct: 88 },
+      preArrangement: { target: 2,  unit: "days", passTargetPct: 85 },
+      creditClaim:    { target: 14, unit: "days", passTargetPct: 90 },
     },
     slas: {
-      faxClaim: { total: 17240, actualPassPct: 77 },
-      preArrangement: { total: 3200, actualPassPct: 86 },
-      creditClaim: { total: 5400, actualPassPct: 93 },
-      reimbursement: { total: 4100, actualPassPct: 89 },
+      faxClaim:       { slaId: "faxClaim",       total: 14200, pass: 12100, notPass: 2100, backlog: 280, complicateCount: 2000, nonComplicateCount: 11920 },
+      preArrangement: { slaId: "preArrangement", total: 980,   pass: 868,   notPass: 112,  backlog: 0,   complicateCount: 640,  nonComplicateCount: 340  },
+      creditClaim:    { slaId: "creditClaim",    total: 28000, pass: 26100, notPass: 1900, backlog: 0,   complicateCount: 1540, nonComplicateCount: 26460},
     },
   },
+  /* ---- Siam Health Provider ---- */
   {
     id: "siam",
     name: "Siam Health Provider",
     tag: "provider",
     trendDelta: 0.9,
     targets: {
-      faxClaim: { target: 30, unit: "mins", passTargetPct: 88 },
-      preArrangement: { target: 3, unit: "days", passTargetPct: 85 },
-      creditClaim: { target: 14, unit: "days", passTargetPct: 90 },
+      faxClaim:       { target: 30, unit: "mins", passTargetPct: 88 },
+      preArrangement: { target: 3,  unit: "days", passTargetPct: 85 },
+      creditClaim:    { target: 14, unit: "days", passTargetPct: 90 },
     },
     slas: {
-      faxClaim: { total: 12800, actualPassPct: 91 },
-      preArrangement: { total: 2600, actualPassPct: 84 },
-      creditClaim: { total: 4300, actualPassPct: 90 },
+      faxClaim:       { slaId: "faxClaim",       total: 12800, pass: 11650, notPass: 1150, backlog: 190, complicateCount: 1900, nonComplicateCount: 10710},
+      preArrangement: { slaId: "preArrangement", total: 2600,  pass: 2184,  notPass: 416,  backlog: 0,   complicateCount: 1820, nonComplicateCount: 780  },
+      creditClaim:    { slaId: "creditClaim",    total: 4300,  pass: 3870,  notPass: 430,  backlog: 0,   complicateCount: 237,  nonComplicateCount: 4063 },
     },
   },
+  /* ---- Bangkok Provident ---- */
   {
     id: "bkk",
     name: "Bangkok Provident",
     tag: "insurer",
     trendDelta: -0.6,
     targets: {
-      faxClaim: { target: 25, unit: "mins", passTargetPct: 92 },
-      creditClaim: { target: 10, unit: "days", passTargetPct: 90 },
-      reimbursement: { target: 30, unit: "days", passTargetPct: 90 },
+      faxClaim:      { target: 25, unit: "mins", passTargetPct: 92 },
+      creditClaim:   { target: 10, unit: "days", passTargetPct: 90 },
+      reimbursement: { target: 7,  unit: "days", passTargetPct: 90 },
     },
     slas: {
-      faxClaim: { total: 15200, actualPassPct: 94 },
-      creditClaim: { total: 6100, actualPassPct: 88 },
-      reimbursement: { total: 3800, actualPassPct: 92 },
+      faxClaim:      { slaId: "faxClaim",      total: 15200, pass: 14290, notPass: 910,  backlog: 340, complicateCount: 2130, nonComplicateCount: 12730},
+      creditClaim:   { slaId: "creditClaim",   total: 6100,  pass: 5368,  notPass: 732,  backlog: 0,   complicateCount: 336,  nonComplicateCount: 5764 },
+      reimbursement: { slaId: "reimbursement", total: 380,   pass: 378,   notPass: 2,    backlog: 0,   complicateCount: 29,   nonComplicateCount: 351  },
     },
   },
+  /* ---- Thai Re Group ---- */
   {
     id: "thaire",
     name: "Thai Re Group",
     tag: "insurer",
     trendDelta: 2.1,
     targets: {
-      faxClaim: { target: 25, unit: "mins", passTargetPct: 90 },
-      preArrangement: { target: 2, unit: "days", passTargetPct: 88 },
-      creditClaim: { target: 14, unit: "days", passTargetPct: 90 },
-      reimbursement: { target: 45, unit: "days", passTargetPct: 85 },
+      faxClaim:       { target: 25, unit: "mins", passTargetPct: 90 },
+      preArrangement: { target: 2,  unit: "days", passTargetPct: 88 },
+      creditClaim:    { target: 14, unit: "days", passTargetPct: 90 },
+      reimbursement:  { target: 7,  unit: "days", passTargetPct: 95 },
     },
     slas: {
-      faxClaim: { total: 9800, actualPassPct: 82 },
-      preArrangement: { total: 2100, actualPassPct: 90 },
-      creditClaim: { total: 4700, actualPassPct: 91 },
-      reimbursement: { total: 5200, actualPassPct: 87 },
+      faxClaim:       { slaId: "faxClaim",       total: 9800,  pass: 8036,  notPass: 1764, backlog: 160, complicateCount: 1380, nonComplicateCount: 8260 },
+      preArrangement: { slaId: "preArrangement", total: 2100,  pass: 1890,  notPass: 210,  backlog: 0,   complicateCount: 1470, nonComplicateCount: 630  },
+      creditClaim:    { slaId: "creditClaim",    total: 4700,  pass: 4277,  notPass: 423,  backlog: 0,   complicateCount: 259,  nonComplicateCount: 4441 },
+      reimbursement:  { slaId: "reimbursement",  total: 210,   pass: 210,   notPass: 0,    backlog: 0,   complicateCount: 16,   nonComplicateCount: 194  },
     },
   },
+  /* ---- Krung Health ---- */
   {
     id: "krung",
     name: "Krung Health",
     tag: "provider",
     trendDelta: 1.4,
     targets: {
-      faxClaim: { target: 30, unit: "mins", passTargetPct: 85 },
-      preArrangement: { target: 2, unit: "days", passTargetPct: 85 },
-      creditClaim: { target: 21, unit: "days", passTargetPct: 88 },
-      reimbursement: { target: 30, unit: "days", passTargetPct: 90 },
+      faxClaim:       { target: 30, unit: "mins", passTargetPct: 85 },
+      preArrangement: { target: 2,  unit: "days", passTargetPct: 85 },
+      creditClaim:    { target: 21, unit: "days", passTargetPct: 88 },
+      reimbursement:  { target: 7,  unit: "days", passTargetPct: 90 },
     },
     slas: {
-      faxClaim: { total: 11400, actualPassPct: 89 },
-      preArrangement: { total: 1900, actualPassPct: 88 },
-      creditClaim: { total: 3600, actualPassPct: 90 },
-      reimbursement: { total: 4400, actualPassPct: 93 },
+      faxClaim:       { slaId: "faxClaim",       total: 11400, pass: 10146, notPass: 1254, backlog: 200, complicateCount: 1600, nonComplicateCount: 9600 },
+      preArrangement: { slaId: "preArrangement", total: 1900,  pass: 1672,  notPass: 228,  backlog: 0,   complicateCount: 1330, nonComplicateCount: 570  },
+      creditClaim:    { slaId: "creditClaim",    total: 3600,  pass: 3240,  notPass: 360,  backlog: 0,   complicateCount: 198,  nonComplicateCount: 3402 },
+      reimbursement:  { slaId: "reimbursement",  total: 4400,  pass: 4400,  notPass: 0,    backlog: 0,   complicateCount: 334,  nonComplicateCount: 4066 },
     },
   },
 ];
@@ -571,25 +618,22 @@ function buildClients(): Client[] {
         targets[def.id] = { ...t, inContract: true };
         data[def.id] = makeSlaData({
           seed: ci * 101 + si * 17 + 1,
+          slaId: def.id,
           total: s.total,
-          actualPassPct: s.actualPassPct,
+          pass: s.pass,
+          notPass: s.notPass,
+          backlog: s.backlog,
+          complicateCount: s.complicateCount,
+          nonComplicateCount: s.nonComplicateCount,
           target: t.target,
           unit: t.unit,
           passTargetPct: t.passTargetPct,
         });
       } else {
-        // Not in this client's contract
         targets[def.id] = { target: 0, unit: def.unit, passTargetPct: 0, inContract: false };
       }
     });
-    return {
-      id: seed.id,
-      name: seed.name,
-      tag: seed.tag,
-      trendDelta: seed.trendDelta,
-      targets,
-      data,
-    };
+    return { id: seed.id, name: seed.name, tag: seed.tag, trendDelta: seed.trendDelta, targets, data };
   });
 }
 
@@ -610,12 +654,9 @@ export function healthLabel(h: SlaHealth) {
 
 export function healthPillClasses(h: SlaHealth) {
   switch (h) {
-    case "onTarget":
-      return "bg-success/15 text-success border-success/30";
-    case "atRisk":
-      return "bg-warning/15 text-warning border-warning/30";
-    default:
-      return "bg-destructive/15 text-destructive border-destructive/30";
+    case "onTarget":   return "bg-success/15 text-success border-success/30";
+    case "atRisk":     return "bg-warning/15 text-warning border-warning/30";
+    default:           return "bg-destructive/15 text-destructive border-destructive/30";
   }
 }
 
