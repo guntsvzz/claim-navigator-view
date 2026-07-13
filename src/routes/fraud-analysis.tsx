@@ -405,16 +405,52 @@ interface WatchlistEntry {
   addedBy: string;
 }
 
+// ---- RFM 1–5 scoring types ----
+
+type ScoringMethod = "fixed" | "quintile";
+type PeerGroup = "all" | "plan" | "age" | "diagnosis";
+
+interface FixedBand {
+  label: string; // e.g. "≤7d"
+  score: number; // 1–5
+}
+
+interface RfmDimension {
+  key: "recency" | "frequency" | "monetary";
+  label: string;
+  metricLabel: string;
+  unit: string;
+  window: number; // days
+  method: ScoringMethod;
+  bands: FixedBand[]; // used when method === "fixed", ordered score 5→1
+  peerGroup: PeerGroup; // used when method === "quintile"
+}
+
+type RfmCondOp = ">=" | "=" | "<=";
+interface RfmCondition {
+  dim: "R" | "F" | "M";
+  op: RfmCondOp;
+  value: number;
+}
+type RfmLogic = "AND" | "OR";
+interface SegmentRule {
+  segment: Segment;
+  logic: RfmLogic;
+  conditions: RfmCondition[];
+}
+
+interface RfmConfig {
+  dimensions: [RfmDimension, RfmDimension, RfmDimension]; // R, F, M
+  segmentRules: SegmentRule[];
+}
+
 interface FraudSettings {
   general: {
     enabled: boolean;
     schedule: "realtime" | "hourly" | "daily";
     dailyTime: string;
   };
-  rfm: {
-    weights: { recency: number; frequency: number; monetary: number };
-    cutoffs: { critical: number; high: number; medium: number; monitor: number };
-  };
+  rfm: RfmConfig;
   rules: RuleConfig[];
   anomaly: {
     zScore: number;
@@ -471,8 +507,94 @@ const DEFAULT_SETTINGS: FraudSettings = {
     dailyTime: "02:00",
   },
   rfm: {
-    weights: { recency: 30, frequency: 30, monetary: 40 },
-    cutoffs: { critical: 85, high: 70, medium: 50, monitor: 30 },
+    dimensions: [
+      {
+        key: "recency",
+        label: "Recency",
+        metricLabel: "Days since last claim",
+        unit: "days",
+        window: 90,
+        method: "fixed" as ScoringMethod,
+        bands: [
+          { label: "≤7d", score: 5 },
+          { label: "8–14d", score: 4 },
+          { label: "15–30d", score: 3 },
+          { label: "31–60d", score: 2 },
+          { label: ">60d", score: 1 },
+        ],
+        peerGroup: "all" as PeerGroup,
+      },
+      {
+        key: "frequency",
+        label: "Frequency",
+        metricLabel: "Number of claims",
+        unit: "claims",
+        window: 30,
+        method: "fixed" as ScoringMethod,
+        bands: [
+          { label: "≥10", score: 5 },
+          { label: "7–9", score: 4 },
+          { label: "4–6", score: 3 },
+          { label: "2–3", score: 2 },
+          { label: "≤1", score: 1 },
+        ],
+        peerGroup: "all" as PeerGroup,
+      },
+      {
+        key: "monetary",
+        label: "Monetary",
+        metricLabel: "Total claimed amount (฿)",
+        unit: "฿",
+        window: 90,
+        method: "fixed" as ScoringMethod,
+        bands: [
+          { label: "≥฿300k", score: 5 },
+          { label: "฿150–300k", score: 4 },
+          { label: "฿60–150k", score: 3 },
+          { label: "฿20–60k", score: 2 },
+          { label: "<฿20k", score: 1 },
+        ],
+        peerGroup: "all" as PeerGroup,
+      },
+    ] as [RfmDimension, RfmDimension, RfmDimension],
+    segmentRules: [
+      {
+        segment: "Critical" as Segment,
+        logic: "AND" as RfmLogic,
+        conditions: [
+          { dim: "R" as const, op: ">=" as RfmCondOp, value: 4 },
+          { dim: "F" as const, op: ">=" as RfmCondOp, value: 4 },
+          { dim: "M" as const, op: ">=" as RfmCondOp, value: 4 },
+        ],
+      },
+      {
+        segment: "High" as Segment,
+        logic: "OR" as RfmLogic,
+        conditions: [
+          { dim: "R" as const, op: ">=" as RfmCondOp, value: 4 },
+          { dim: "F" as const, op: ">=" as RfmCondOp, value: 4 },
+          { dim: "M" as const, op: ">=" as RfmCondOp, value: 4 },
+        ],
+      },
+      {
+        segment: "Medium" as Segment,
+        logic: "OR" as RfmLogic,
+        conditions: [
+          { dim: "R" as const, op: ">=" as RfmCondOp, value: 3 },
+          { dim: "F" as const, op: ">=" as RfmCondOp, value: 3 },
+          { dim: "M" as const, op: ">=" as RfmCondOp, value: 3 },
+        ],
+      },
+      {
+        segment: "Monitor" as Segment,
+        logic: "OR" as RfmLogic,
+        conditions: [
+          { dim: "R" as const, op: ">=" as RfmCondOp, value: 3 },
+          { dim: "F" as const, op: ">=" as RfmCondOp, value: 3 },
+          { dim: "M" as const, op: ">=" as RfmCondOp, value: 3 },
+        ],
+      },
+    ] as SegmentRule[],
   },
   rules: [
     {
@@ -591,12 +713,51 @@ const fmtBahtFull = (n: number) =>
 const clone = (s: FraudSettings): FraudSettings =>
   JSON.parse(JSON.stringify(s)) as FraudSettings;
 
-function scoreToSegment(score: number, c: FraudSettings["rfm"]["cutoffs"]): Segment {
-  if (score >= c.critical) return "Critical";
-  if (score >= c.high) return "High";
-  if (score >= c.medium) return "Medium";
-  if (score >= c.monitor) return "Monitor";
+function evalCondition(c: RfmCondition, r: number, f: number, m: number): boolean {
+  const val = c.dim === "R" ? r : c.dim === "F" ? f : m;
+  if (c.op === ">=") return val >= c.value;
+  if (c.op === "<=") return val <= c.value;
+  return val === c.value;
+}
+
+function applySegmentRules(rules: SegmentRule[], r: number, f: number, m: number): Segment {
+  for (const rule of rules) {
+    const results = rule.conditions.map((c) => evalCondition(c, r, f, m));
+    const match = rule.logic === "AND" ? results.every(Boolean) : results.some(Boolean);
+    if (match) return rule.segment;
+  }
   return "Low";
+}
+
+function scoreFromBands(bands: FixedBand[], raw: number, key: "recency" | "frequency" | "monetary"): { band: FixedBand; score: number } {
+  // Recency: lower raw = higher score; Frequency/Monetary: higher raw = higher score
+  // Bands are ordered 5→1 so first matching band wins
+  for (const band of bands) {
+    const label = band.label;
+    if (key === "recency") {
+      if (label.startsWith("≤") && raw <= Number(label.slice(1).replace("d", ""))) return { band, score: band.score };
+      if (label.startsWith(">") && !label.includes("–") && raw > Number(label.slice(1).replace("d", ""))) return { band, score: band.score };
+      // range like "8–14d"
+      const rangeMatch = label.match(/^(\d+)[–-](\d+)/);
+      if (rangeMatch && raw >= Number(rangeMatch[1]) && raw <= Number(rangeMatch[2])) return { band, score: band.score };
+    } else if (key === "frequency") {
+      if (label.startsWith("≥") && raw >= Number(label.slice(1))) return { band, score: band.score };
+      if (label.startsWith("≤") && raw <= Number(label.slice(1))) return { band, score: band.score };
+      const rangeMatch = label.match(/^(\d+)[–-](\d+)/);
+      if (rangeMatch && raw >= Number(rangeMatch[1]) && raw <= Number(rangeMatch[2])) return { band, score: band.score };
+    } else {
+      // monetary — strip ฿ and k
+      const parseM = (s: string) => {
+        const n = s.replace(/[฿k,]/gi, (c) => (c.toLowerCase() === "k" ? "000" : ""));
+        return Number(n.replace(/[^0-9]/g, ""));
+      };
+      if (label.startsWith("≥")) { const t = parseM(label.slice(1)); if (raw >= t) return { band, score: band.score }; }
+      if (label.startsWith("<")) { const t = parseM(label.slice(1)); if (raw < t) return { band, score: band.score }; }
+      const rangeMatch = label.match(/฿?([\d,k]+)[–-]฿?([\d,k]+)/i);
+      if (rangeMatch && raw >= parseM(rangeMatch[1]) && raw < parseM(rangeMatch[2])) return { band, score: band.score };
+    }
+  }
+  return { band: bands[bands.length - 1], score: 1 };
 }
 
 const paramSuffix: Record<ParamType, string> = {
@@ -697,12 +858,7 @@ function FraudAnalysisPage() {
     [settings, saved],
   );
 
-  const weightSum =
-    settings.rfm.weights.recency +
-    settings.rfm.weights.frequency +
-    settings.rfm.weights.monetary;
-  const weightsValid = weightSum === 100;
-  const canSave = dirty && weightsValid && !readOnly && savingState === "idle";
+  const canSave = dirty && !readOnly && savingState === "idle";
 
   const activeRules = settings.rules.filter((r) => r.enabled).length;
   const rules30d = settings.rules
@@ -1171,8 +1327,6 @@ function FraudAnalysisPage() {
                   settings={settings}
                   update={update}
                   readOnly={readOnly}
-                  weightSum={weightSum}
-                  weightsValid={weightsValid}
                 />
               )}
               {activeSection === "rules" && (
@@ -1207,17 +1361,10 @@ function FraudAnalysisPage() {
       >
         <div className="flex items-center justify-between gap-4 px-4 py-3 md:px-6">
           <div className="flex items-center gap-2 text-sm">
-            {weightsValid ? (
-              <span className="flex items-center gap-1.5 text-warning">
-                <AlertTriangle className="h-4 w-4" />
-                You have unsaved changes
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                RFM weights must total 100% before saving (currently {weightSum}%)
-              </span>
-            )}
+            <span className="flex items-center gap-1.5 text-warning">
+              <AlertTriangle className="h-4 w-4" />
+              You have unsaved changes
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -1596,130 +1743,355 @@ function GeneralSection({ settings, update, readOnly }: SectionProps) {
 
 // ---------- 2) RFM Segmentation ----------
 
-function RfmSection({
-  settings,
-  update,
-  readOnly,
-  weightSum,
-  weightsValid,
-}: SectionProps & { weightSum: number; weightsValid: boolean }) {
-  const { weights, cutoffs } = settings.rfm;
-  const [sample, setSample] = useState(78);
-  const sampleSegment = scoreToSegment(sample, cutoffs);
+const PEER_GROUP_OPTIONS: { value: PeerGroup; label: string }[] = [
+  { value: "all", label: "All members" },
+  { value: "plan", label: "Same plan" },
+  { value: "age", label: "Same age band" },
+  { value: "diagnosis", label: "Same diagnosis group" },
+];
 
-  const weightItems: { key: keyof typeof weights; label: string }[] = [
-    { key: "recency", label: "Recency" },
-    { key: "frequency", label: "Frequency" },
-    { key: "monetary", label: "Monetary" },
-  ];
+const DIM_LABELS: Record<string, "R" | "F" | "M"> = {
+  recency: "R",
+  frequency: "F",
+  monetary: "M",
+};
 
-  const cutoffItems: { key: keyof typeof cutoffs; segment: Segment }[] = [
-    { key: "critical", segment: "Critical" },
-    { key: "high", segment: "High" },
-    { key: "medium", segment: "Medium" },
-    { key: "monitor", segment: "Monitor" },
-  ];
+function RfmSection({ settings, update, readOnly }: SectionProps) {
+  const { dimensions, segmentRules } = settings.rfm;
+
+  // Live preview state
+  const [previewDaysAgo, setPreviewDaysAgo] = useState(2);
+  const [previewClaims, setPreviewClaims] = useState(12);
+  const [previewAmount, setPreviewAmount] = useState(420000);
+
+  const rResult = scoreFromBands(dimensions[0].bands, previewDaysAgo, "recency");
+  const fResult = scoreFromBands(dimensions[1].bands, previewClaims, "frequency");
+  const mResult = scoreFromBands(dimensions[2].bands, previewAmount, "monetary");
+  const previewSegment = applySegmentRules(segmentRules, rResult.score, fResult.score, mResult.score);
 
   return (
     <>
-      <Panel
-        title="RFM weights"
-        subtitle="Contribution of each dimension to the composite score (must total 100%)"
-        actions={
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums",
-              weightsValid
-                ? "border-success/30 bg-success/15 text-success"
-                : "border-destructive/30 bg-destructive/15 text-destructive",
-            )}
-          >
-            {weightsValid ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-            Total {weightSum}%
-          </span>
-        }
-      >
-        <div className="space-y-5">
-          {weightItems.map((w) => (
-            <div key={w.key}>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <Label className="font-medium">{w.label}</Label>
-                <span className="font-semibold tabular-nums">{weights[w.key]}%</span>
-              </div>
-              <Slider
-                value={[weights[w.key]]}
-                min={0}
-                max={100}
-                step={5}
-                disabled={readOnly}
-                onValueChange={([v]) => update((d) => (d.rfm.weights[w.key] = v))}
-              />
-            </div>
-          ))}
-          {!weightsValid && (
-            <p className="text-xs text-destructive">
-              Weights currently total {weightSum}%. Adjust so Recency + Frequency + Monetary = 100%.
-            </p>
-          )}
-        </div>
-      </Panel>
+      {/* Caveat banner */}
+      <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/8 px-4 py-3 text-sm text-warning">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          <span className="font-semibold">RFM ranks review priority; it is NOT a fraud verdict.</span>{" "}
+          High R/F/M often means a genuinely sick member — always pair with rule-based signals.
+        </span>
+      </div>
 
-      <Panel
-        title="Segment cut-offs"
-        subtitle="Minimum composite score (0–100) that maps a member to each segment"
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          {cutoffItems.map((c) => (
-            <div
-              key={c.key}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-md border p-3",
-                SEGMENT_STYLES[c.segment],
-              )}
-            >
-              <SegmentPill segment={c.segment} />
+      {/* Section 1 — Dimension setup */}
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Section 1 — Dimension Setup
+        </h2>
+        <p className="text-xs text-muted-foreground">Each dimension is scored 1–5. Choose Fixed bands or Quintile (peer-relative).</p>
+      </div>
+
+      {dimensions.map((dim, dIdx) => (
+        <Panel
+          key={dim.key}
+          title={dim.label}
+          subtitle={`${dim.metricLabel} · Lookback window: ${dim.window} days`}
+        >
+          <div className="space-y-5">
+            {/* Lookback window */}
+            <div className="flex items-center gap-3">
+              <Label className="w-36 shrink-0 text-sm font-medium">Lookback window</Label>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs opacity-80">score ≥</span>
                 <Input
                   type="number"
-                  min={0}
-                  max={100}
-                  value={cutoffs[c.key]}
+                  min={1}
+                  value={dim.window}
                   disabled={readOnly}
                   onChange={(e) =>
-                    update((d) => (d.rfm.cutoffs[c.key] = Number(e.target.value)))
+                    update((d) => (d.rfm.dimensions[dIdx].window = Number(e.target.value)))
                   }
-                  className="h-8 w-20 bg-background tabular-nums"
+                  className="h-8 w-24 tabular-nums"
                 />
+                <span className="text-xs text-muted-foreground">days</span>
+              </div>
+            </div>
+
+            {/* Scoring method toggle */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Scoring method</Label>
+              <div className="inline-flex rounded-lg border border-border bg-muted p-1">
+                {(["fixed", "quintile"] as ScoringMethod[]).map((m) => (
+                  <button
+                    key={m}
+                    disabled={readOnly}
+                    onClick={() => update((d) => (d.rfm.dimensions[dIdx].method = m))}
+                    className={cn(
+                      "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                      dim.method === m
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                      readOnly && "cursor-not-allowed opacity-60",
+                    )}
+                  >
+                    {m === "fixed" ? "Fixed bands" : "Quintile"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fixed bands table */}
+            {dim.method === "fixed" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Score bands (raw value → score)</Label>
+                <div className="overflow-hidden rounded-md border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-border bg-muted/40">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Score</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Band label</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {dim.bands.map((band, bIdx) => (
+                        <tr key={bIdx} className="bg-background">
+                          <td className="px-3 py-2">
+                            <span className={cn(
+                              "inline-flex h-6 w-8 items-center justify-center rounded border text-[11px] font-bold tabular-nums",
+                              band.score >= 5
+                                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                : band.score >= 4
+                                  ? "border-warning/40 bg-warning/10 text-warning"
+                                  : band.score >= 3
+                                    ? "border-info/40 bg-info/10 text-info"
+                                    : "border-border bg-muted text-muted-foreground",
+                            )}>
+                              {band.score}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              value={band.label}
+                              disabled={readOnly}
+                              onChange={(e) =>
+                                update((d) => (d.rfm.dimensions[dIdx].bands[bIdx].label = e.target.value))
+                              }
+                              className="h-7 max-w-[200px] text-sm"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Quintile peer group */}
+            {dim.method === "quintile" && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Peer group</Label>
+                <Select
+                  value={dim.peerGroup}
+                  disabled={readOnly}
+                  onValueChange={(v) =>
+                    update((d) => (d.rfm.dimensions[dIdx].peerGroup = v as PeerGroup))
+                  }
+                >
+                  <SelectTrigger className="w-[260px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PEER_GROUP_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Score = quintile of the member within the selected peer group. Top 20% = 5.{" "}
+                  <span className="italic">Peer-relative scoring fixes &ldquo;compared to whom&rdquo;.</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </Panel>
+      ))}
+
+      {/* Section 2 — Segment rules */}
+      <div className="space-y-1 pt-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Section 2 — Segment Rules
+        </h2>
+        <p className="text-xs text-muted-foreground">Rule builder on the 1–5 scores. Rows are evaluated top → bottom; first match wins.</p>
+      </div>
+
+      <Panel
+        title="Segment rules"
+        subtitle="Define conditions on R/F/M scores (1–5) that map a member to a segment"
+      >
+        <div className="space-y-3">
+          {segmentRules.map((rule, rIdx) => (
+            <div
+              key={rIdx}
+              className={cn(
+                "rounded-md border p-4 space-y-3",
+                SEGMENT_STYLES[rule.segment],
+              )}
+            >
+              {/* Rule header */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <SegmentPill segment={rule.segment} />
+                  <span className="text-xs text-muted-foreground">match logic:</span>
+                  <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+                    {(["AND", "OR"] as RfmLogic[]).map((lg) => (
+                      <button
+                        key={lg}
+                        disabled={readOnly}
+                        onClick={() => update((d) => (d.rfm.segmentRules[rIdx].logic = lg))}
+                        className={cn(
+                          "rounded px-2.5 py-1 text-xs font-semibold transition-colors",
+                          rule.logic === lg
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground",
+                          readOnly && "cursor-not-allowed",
+                        )}
+                      >
+                        {lg}
+                      </button>
+                    ))}
+                  </div>
+                  {rule.logic === "AND" && (
+                    <span className="text-[10px] text-muted-foreground">all conditions must match</span>
+                  )}
+                  {rule.logic === "OR" && (
+                    <span className="text-[10px] text-muted-foreground">any condition matches</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Conditions */}
+              <div className="space-y-2">
+                {rule.conditions.map((cond, cIdx) => (
+                  <div key={cIdx} className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground w-4">{cond.dim}</span>
+                    <Select
+                      value={cond.op}
+                      disabled={readOnly}
+                      onValueChange={(v) =>
+                        update((d) => (d.rfm.segmentRules[rIdx].conditions[cIdx].op = v as RfmCondOp))
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-16 text-xs bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=">=">≥</SelectItem>
+                        <SelectItem value="=">=</SelectItem>
+                        <SelectItem value="<=">≤</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={String(cond.value)}
+                      disabled={readOnly}
+                      onValueChange={(v) =>
+                        update((d) => (d.rfm.segmentRules[rIdx].conditions[cIdx].value = Number(v)))
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-16 text-xs bg-background">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[10px] text-muted-foreground">
+                      ({cond.dim === "R" ? "Recency" : cond.dim === "F" ? "Frequency" : "Monetary"} score {cond.op} {cond.value})
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
-          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 p-3">
-            <SegmentPill segment="Low" />
-            <span className="text-xs text-muted-foreground">
-              anything below {cutoffs.monitor}
-            </span>
-          </div>
+
+          <p className="text-xs text-muted-foreground pt-1">
+            Members not matching any rule above are assigned <strong>Low</strong>.
+          </p>
         </div>
       </Panel>
 
-      <Panel title="Live preview" subtitle="See which segment a sample score maps to">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm">
-            <Label className="font-medium">Sample composite score</Label>
-            <span className="text-2xl font-bold tabular-nums">{sample}</span>
+      {/* Section 3 — Live preview */}
+      <div className="space-y-1 pt-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Section 3 — Live Preview
+        </h2>
+        <p className="text-xs text-muted-foreground">Edit raw inputs to trace the full pipeline: raw value → band → score → segment.</p>
+      </div>
+
+      <Panel title="Live preview" subtitle="Sample member with editable raw inputs — computed live">
+        <div className="space-y-5">
+          {/* Editable inputs */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Last claim (days ago)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={previewDaysAgo}
+                onChange={(e) => setPreviewDaysAgo(Number(e.target.value))}
+                className="h-9 tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Claims in window</Label>
+              <Input
+                type="number"
+                min={0}
+                value={previewClaims}
+                onChange={(e) => setPreviewClaims(Number(e.target.value))}
+                className="h-9 tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Total claimed (฿)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={previewAmount}
+                onChange={(e) => setPreviewAmount(Number(e.target.value))}
+                className="h-9 tabular-nums"
+              />
+            </div>
           </div>
-          <Slider
-            value={[sample]}
-            min={0}
-            max={100}
-            step={1}
-            onValueChange={([v]) => setSample(v)}
-          />
-          <div className="flex items-center gap-3 rounded-md border border-border bg-background p-4">
-            <span className="text-sm text-muted-foreground">Resulting segment</span>
-            <span className="text-lg">→</span>
-            <SegmentPill segment={sampleSegment} />
+
+          {/* Pipeline trace */}
+          <div className="rounded-md border border-border bg-muted/30 divide-y divide-border">
+            {[
+              { dimLabel: "Recency",   raw: `${previewDaysAgo} days ago`, band: rResult.band.label, score: rResult.score, letter: "R" },
+              { dimLabel: "Frequency", raw: `${previewClaims} claims`,    band: fResult.band.label, score: fResult.score, letter: "F" },
+              { dimLabel: "Monetary",  raw: `฿${previewAmount.toLocaleString()}`, band: mResult.band.label, score: mResult.score, letter: "M" },
+            ].map((row) => (
+              <div key={row.letter} className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm">
+                <span className="w-20 font-medium text-muted-foreground">{row.dimLabel}</span>
+                <span className="font-mono text-foreground">{row.raw}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="rounded border border-border bg-background px-2 py-0.5 text-xs font-medium">
+                  band: {row.band}
+                </span>
+                <span className="text-muted-foreground">→</span>
+                <RfmBadge label={row.letter as "R" | "F" | "M"} value={row.score} />
+              </div>
+            ))}
+          </div>
+
+          {/* Scores + segment result */}
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-background p-4">
+            <div className="flex items-center gap-1.5">
+              <RfmBadge label="R" value={rResult.score} />
+              <RfmBadge label="F" value={fResult.score} />
+              <RfmBadge label="M" value={mResult.score} />
+            </div>
+            <span className="text-muted-foreground">→</span>
+            <span className="text-sm font-medium text-muted-foreground">Segment:</span>
+            <SegmentPill segment={previewSegment} />
           </div>
         </div>
       </Panel>
