@@ -21,10 +21,8 @@ import {
   ClipboardList,
   Clock,
   Cog,
-  Copy,
   Database,
   Filter,
-  Layers,
   Lock,
   Network,
   Plus,
@@ -72,7 +70,7 @@ export const Route = createFileRoute("/fraud-analysis")({
 // ---------- Types & constants ----------
 
 type Segment = "Critical" | "High" | "Medium" | "Monitor" | "Low";
-type SignalKind = "Rule" | "Anomaly" | "Network" | "Cross-Insurer";
+type SignalKind = "Rule" | "Anomaly" | "Network";
 type Severity = "High" | "Medium" | "Low";
 type Role = "Admin" | "Executive";
 
@@ -98,21 +96,12 @@ const SIGNAL_STYLES: Record<SignalKind, string> = {
   Rule: "bg-muted text-foreground border-border",
   Anomaly: "bg-info/10 text-info border-info/30",
   Network: "bg-primary/10 text-primary border-primary/30",
-  "Cross-Insurer": "bg-destructive/15 text-destructive border-destructive/40",
 };
 
 const SEVERITY_STYLES: Record<Severity, string> = {
   High: "bg-destructive/15 text-destructive border-destructive/30",
   Medium: "bg-warning/15 text-warning border-warning/30",
   Low: "bg-muted text-muted-foreground border-border",
-};
-
-type CrossInsurerCase = {
-  insurers: [string, string];
-  provider: string;
-  treatmentDate: string;
-  diagnosis: string;
-  amounts: [number, number];
 };
 
 type QueueRow = {
@@ -129,7 +118,6 @@ type QueueRow = {
   lastClaim: string;
   rfmDetail: { r: string; f: string; m: string };
   reasonCodes: string[];
-  crossInsurer?: CrossInsurerCase;
 };
 
 // ---------- Mock data ----------
@@ -143,9 +131,8 @@ const QUEUE: QueueRow[] = [
     f: 5,
     m: 4,
     segment: "Critical",
-    signals: ["Cross-Insurer", "Rule", "Anomaly"],
-    topReason:
-      "Same treatment submitted to วิริยะประกันสุขภาพ + ทิพยประกันชีวิต this week",
+    signals: ["Rule", "Anomaly"],
+    topReason: "Same provider used 6× in 21 days — amount matches benefit ceiling within 2%",
     amount: 184_500,
     lastClaim: "yesterday",
     rfmDetail: {
@@ -154,17 +141,9 @@ const QUEUE: QueueRow[] = [
       m: "Cumulative ฿420,000 in 90d — top 8% of members",
     },
     reasonCodes: [
-      "Cross-insurer duplicate: identical procedure code + date",
       "Same provider used 6× in 21 days",
       "Amount matches benefit ceiling within 2%",
     ],
-    crossInsurer: {
-      insurers: ["วิริยะประกันสุขภาพ", "ทิพยประกันชีวิต"],
-      provider: "Bangkok Hospital",
-      treatmentDate: "2026-07-08",
-      diagnosis: "I25 · Chronic ischemic heart disease",
-      amounts: [184_500, 182_900],
-    },
   },
   {
     id: "FA-0002",
@@ -174,9 +153,8 @@ const QUEUE: QueueRow[] = [
     f: 4,
     m: 5,
     segment: "Critical",
-    signals: ["Cross-Insurer", "Rule"],
-    topReason:
-      "Identical MRI claim filed at Samitivej to วิริยะ + ทิพย 3 days apart",
+    signals: ["Rule"],
+    topReason: "Repeated near-ceiling MRI claims (3× in 45d) at Samitivej",
     amount: 96_800,
     lastClaim: "2 days ago",
     rfmDetail: {
@@ -185,16 +163,8 @@ const QUEUE: QueueRow[] = [
       m: "฿612,000 in 90d — top 4%",
     },
     reasonCodes: [
-      "Cross-insurer duplicate: MRI lumbar spine, same date",
       "Repeated near-ceiling claims (3× in 45d)",
     ],
-    crossInsurer: {
-      insurers: ["วิริยะประกันสุขภาพ", "ทิพยประกันชีวิต"],
-      provider: "Samitivej Hospital",
-      treatmentDate: "2026-07-05",
-      diagnosis: "M54 · Dorsalgia (MRI lumbar)",
-      amounts: [96_800, 94_200],
-    },
   },
   {
     id: "FA-0003",
@@ -370,7 +340,6 @@ const SEGMENT_DIST: { name: Segment; value: number }[] = [
 
 // Hit counts (last 30 days) per shared rule id, surfaced on the Review Queue tab.
 const RULE_HITS: Record<string, number> = {
-  r1: 7,
   r2: 24,
   r3: 61,
   r4: 33,
@@ -458,17 +427,7 @@ interface FraudSettings {
     networkMinMembers: number;
     matchFields: string[];
   };
-  crossInsurer: {
-    procedureCode: boolean;
-    treatmentDate: boolean;
-    dateWindowDays: number;
-    amountTolerance: boolean;
-    amountTolerancePct: number;
-    provider: boolean;
-    insurers: string[];
-  };
   watchlist: {
-    providers: WatchlistEntry[];
     members: WatchlistEntry[];
   };
   alerts: {
@@ -480,15 +439,6 @@ interface FraudSettings {
     slaHours: number;
   };
 }
-
-const ALL_INSURERS = [
-  "วิริยะประกันสุขภาพ",
-  "ทิพยประกันชีวิต",
-  "กรุงเทพประกันภัย",
-  "เมืองไทยประกันชีวิต",
-  "อลิอันซ์ อยุธยา",
-  "เอไอเอ ประเทศไทย",
-];
 
 const NETWORK_FIELDS = ["Provider", "Treatment date", "Amount", "Diagnosis"];
 
@@ -598,13 +548,6 @@ const DEFAULT_SETTINGS: FraudSettings = {
   },
   rules: [
     {
-      id: "r1",
-      name: "Cross-insurer duplicate claim (same treatment to 2 insurers)",
-      severity: "High",
-      enabled: true,
-      params: [{ key: "tolerance", label: "Amount tolerance", type: "percent", value: 2 }],
-    },
-    {
       id: "r2",
       name: "Same member + provider + treatment date + amount",
       severity: "High",
@@ -656,24 +599,7 @@ const DEFAULT_SETTINGS: FraudSettings = {
     networkMinMembers: 3,
     matchFields: ["Provider", "Treatment date", "Amount"],
   },
-  crossInsurer: {
-    procedureCode: true,
-    treatmentDate: true,
-    dateWindowDays: 1,
-    amountTolerance: true,
-    amountTolerancePct: 2,
-    provider: true,
-    insurers: ["วิริยะประกันสุขภาพ", "ทิพยประกันชีวิต"],
-  },
   watchlist: {
-    providers: [
-      {
-        id: "wp1",
-        name: "Ramkhamhaeng Cluster Clinic",
-        reason: "Repeated network-cluster duplicates",
-        addedBy: "K. Wattana",
-      },
-    ],
     members: [
       {
         id: "wm1",
@@ -698,7 +624,6 @@ const SECTIONS = [
   { id: "rfm", label: "RFM Segmentation", icon: SlidersHorizontal },
   { id: "rules", label: "Rule-Based Checks", icon: ClipboardList },
   { id: "anomaly", label: "Anomaly & Network", icon: Network },
-  { id: "cross", label: "Cross-Insurer Duplicate", icon: Copy },
   { id: "watchlist", label: "Watchlist / Blacklist", icon: ShieldAlert },
   { id: "alerts", label: "Alerts & Routing", icon: BellRing },
 ] as const;
@@ -984,21 +909,13 @@ function FraudAnalysisPage() {
       {tab === "queue" && (
         <>
           {/* KPI row */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <KpiCard
               label="Critical Queue"
               value="18"
               sub="Highest-priority cases"
               tone="destructive"
               icon={AlertTriangle}
-            />
-            <KpiCard
-              label="Cross-Insurer Duplicates"
-              value="7"
-              sub="Same treatment → 2+ insurers"
-              tone="destructive"
-              icon={Copy}
-              delta={40}
             />
             <KpiCard
               label="High RFM Risk"
@@ -1278,8 +1195,8 @@ function FraudAnalysisPage() {
             />
             <KpiCard
               label="Watchlisted"
-              value={settings.watchlist.providers.length + settings.watchlist.members.length}
-              sub={`${settings.watchlist.providers.length} providers · ${settings.watchlist.members.length} members`}
+              value={settings.watchlist.members.length}
+              sub={`${settings.watchlist.members.length} members`}
               tone="destructive"
               icon={ShieldAlert}
             />
@@ -1334,9 +1251,6 @@ function FraudAnalysisPage() {
               )}
               {activeSection === "anomaly" && (
                 <AnomalySection settings={settings} update={update} readOnly={readOnly} />
-              )}
-              {activeSection === "cross" && (
-                <CrossInsurerSection settings={settings} update={update} readOnly={readOnly} />
               )}
               {activeSection === "watchlist" && (
                 <WatchlistSection settings={settings} update={update} readOnly={readOnly} />
@@ -1503,55 +1417,7 @@ function ReviewDrawer({
                 </ul>
               </section>
 
-              {/* Cross-insurer comparison */}
-              {row.crossInsurer && (
-                <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-destructive">
-                    Cross-Insurer Duplicate
-                  </h3>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {row.crossInsurer.insurers.map((ins, i) => (
-                      <div
-                        key={ins}
-                        className="rounded-md border border-destructive/30 bg-destructive/5 p-3"
-                      >
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-destructive">
-                          Insurer {i + 1}
-                        </div>
-                        <div className="mt-0.5 text-sm font-semibold">
-                          {ins}
-                        </div>
-                        <dl className="mt-2 space-y-1 text-xs">
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">Date</dt>
-                            <dd className="font-mono">
-                              {row.crossInsurer!.treatmentDate}
-                            </dd>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">Provider</dt>
-                            <dd className="text-right">
-                              {row.crossInsurer!.provider}
-                            </dd>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">Diagnosis</dt>
-                            <dd className="text-right">
-                              {row.crossInsurer!.diagnosis}
-                            </dd>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <dt className="text-muted-foreground">Amount</dt>
-                            <dd className="font-semibold tabular-nums">
-                              {fmtBahtFull(row.crossInsurer!.amounts[i])}
-                            </dd>
-                          </div>
-                        </dl>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+
             </div>
 
             <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
@@ -2326,159 +2192,13 @@ function AnomalySection({ settings, update, readOnly }: SectionProps) {
   );
 }
 
-// ---------- 5) Cross-Insurer ----------
-
-function CrossInsurerSection({ settings, update, readOnly }: SectionProps) {
-  const c = settings.crossInsurer;
-  return (
-    <>
-      <Panel
-        title="Match criteria"
-        subtitle="How a claim is matched across insurers to detect duplicate submissions"
-      >
-        <div className="space-y-3">
-          <label
-            className={cn(
-              "flex items-center gap-2 rounded-md border border-border p-3 text-sm",
-              readOnly && "opacity-60",
-            )}
-          >
-            <Checkbox
-              checked={c.procedureCode}
-              disabled={readOnly}
-              onCheckedChange={(v) => update((d) => (d.crossInsurer.procedureCode = !!v))}
-            />
-            Procedure code
-          </label>
-
-          <div
-            className={cn(
-              "flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3 text-sm",
-              readOnly && "opacity-60",
-            )}
-          >
-            <label className="flex items-center gap-2">
-              <Checkbox
-                checked={c.treatmentDate}
-                disabled={readOnly}
-                onCheckedChange={(v) => update((d) => (d.crossInsurer.treatmentDate = !!v))}
-              />
-              Treatment date
-            </label>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">± window</span>
-              <Input
-                type="number"
-                min={0}
-                value={c.dateWindowDays}
-                disabled={readOnly || !c.treatmentDate}
-                onChange={(e) =>
-                  update((d) => (d.crossInsurer.dateWindowDays = Number(e.target.value)))
-                }
-                className="h-8 w-16 tabular-nums"
-              />
-              <span className="text-xs text-muted-foreground">days</span>
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              "flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3 text-sm",
-              readOnly && "opacity-60",
-            )}
-          >
-            <label className="flex items-center gap-2">
-              <Checkbox
-                checked={c.amountTolerance}
-                disabled={readOnly}
-                onCheckedChange={(v) => update((d) => (d.crossInsurer.amountTolerance = !!v))}
-              />
-              Amount tolerance
-            </label>
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="number"
-                min={0}
-                value={c.amountTolerancePct}
-                disabled={readOnly || !c.amountTolerance}
-                onChange={(e) =>
-                  update((d) => (d.crossInsurer.amountTolerancePct = Number(e.target.value)))
-                }
-                className="h-8 w-16 tabular-nums"
-              />
-              <span className="text-xs text-muted-foreground">%</span>
-            </div>
-          </div>
-
-          <label
-            className={cn(
-              "flex items-center gap-2 rounded-md border border-border p-3 text-sm",
-              readOnly && "opacity-60",
-            )}
-          >
-            <Checkbox
-              checked={c.provider}
-              disabled={readOnly}
-              onCheckedChange={(v) => update((d) => (d.crossInsurer.provider = !!v))}
-            />
-            Provider
-          </label>
-        </div>
-      </Panel>
-
-      <Panel
-        title="Participating insurers"
-        subtitle="Cross-insurer duplicates are only checked against selected insurers"
-        actions={
-          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Layers className="h-3 w-3" /> {c.insurers.length} selected
-          </span>
-        }
-      >
-        <div className="grid gap-2 sm:grid-cols-2">
-          {ALL_INSURERS.map((ins) => {
-            const checked = c.insurers.includes(ins);
-            return (
-              <label
-                key={ins}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm transition-colors",
-                  checked ? "border-primary bg-primary/5" : "border-border hover:bg-accent/40",
-                  readOnly && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <Checkbox
-                  checked={checked}
-                  disabled={readOnly}
-                  onCheckedChange={(v) =>
-                    update((d) => {
-                      if (v) d.crossInsurer.insurers.push(ins);
-                      else
-                        d.crossInsurer.insurers = d.crossInsurer.insurers.filter(
-                          (x) => x !== ins,
-                        );
-                    })
-                  }
-                />
-                {ins}
-              </label>
-            );
-          })}
-        </div>
-      </Panel>
-    </>
-  );
-}
-
-// ---------- 6) Watchlist ----------
+// ---------- 5) Watchlist ----------
 
 function WatchlistTable({
-  kind,
   entries,
   update,
   readOnly,
 }: {
-  kind: "providers" | "members";
   entries: WatchlistEntry[];
   update: SectionProps["update"];
   readOnly: boolean;
@@ -2489,8 +2209,8 @@ function WatchlistTable({
   function add() {
     if (!name.trim() || !reason.trim()) return;
     update((d) => {
-      d.watchlist[kind].push({
-        id: `${kind}-${Date.now()}`,
+      d.watchlist.members.push({
+        id: `members-${Date.now()}`,
         name: name.trim(),
         reason: reason.trim(),
         addedBy: "Admin",
@@ -2502,7 +2222,7 @@ function WatchlistTable({
 
   return (
     <Panel
-      title={kind === "providers" ? "Providers" : "Members"}
+      title="Members"
       subtitle={`${entries.length} on watchlist`}
       bodyClassName="p-0"
     >
@@ -2510,9 +2230,7 @@ function WatchlistTable({
         <table className="w-full min-w-[560px] text-sm">
           <thead className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 text-left font-medium">
-                {kind === "providers" ? "Provider" : "Member"}
-              </th>
+              <th className="px-4 py-2 text-left font-medium">Member</th>
               <th className="px-4 py-2 text-left font-medium">Reason</th>
               <th className="px-4 py-2 text-left font-medium">Added by</th>
               <th className="px-4 py-2 text-right font-medium">Action</th>
@@ -2526,28 +2244,25 @@ function WatchlistTable({
                 </td>
               </tr>
             ) : (
-              entries.map((e) => {
-                const globalIdx = entries.indexOf(e);
-                return (
-                  <tr key={e.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-medium">{e.name}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{e.reason}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{e.addedBy}</td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        disabled={readOnly}
-                        aria-label="Remove entry"
-                        onClick={() => update((d) => d.watchlist[kind].splice(globalIdx, 1))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
+              entries.map((e, globalIdx) => (
+                <tr key={e.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 font-medium">{e.name}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{e.reason}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{e.addedBy}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      disabled={readOnly}
+                      aria-label="Remove entry"
+                      onClick={() => update((d) => d.watchlist.members.splice(globalIdx, 1))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -2555,13 +2270,11 @@ function WatchlistTable({
       {!readOnly && (
         <div className="flex flex-wrap items-end gap-2 border-t border-border p-4">
           <div className="min-w-[160px] flex-1 space-y-1">
-            <Label className="text-xs text-muted-foreground">
-              {kind === "providers" ? "Provider name / ID" : "Member ID / name"}
-            </Label>
+            <Label className="text-xs text-muted-foreground">Member ID / name</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={kind === "providers" ? "e.g. Bangkok Hospital" : "e.g. MBR-0012345"}
+              placeholder="e.g. MBR-0012345"
               className="h-9"
             />
           </div>
@@ -2585,20 +2298,11 @@ function WatchlistTable({
 
 function WatchlistSection({ settings, update, readOnly }: SectionProps) {
   return (
-    <>
-      <WatchlistTable
-        kind="providers"
-        entries={settings.watchlist.providers}
-        update={update}
-        readOnly={readOnly}
-      />
-      <WatchlistTable
-        kind="members"
-        entries={settings.watchlist.members}
-        update={update}
-        readOnly={readOnly}
-      />
-    </>
+    <WatchlistTable
+      entries={settings.watchlist.members}
+      update={update}
+      readOnly={readOnly}
+    />
   );
 }
 
