@@ -603,6 +603,10 @@ function PeriodTable({ sla }: { sla: SlaComputed }) {
         <tbody>
           {sla.bucketsRef.map((b) => {
             const isPass = b.upper <= sla.target.target;
+            const rowTotal = b.complicate + b.nonComplicate;
+            const complicatePct  = totalComp > 0 ? round1((b.complicate    / totalComp) * 100) : 0;
+            const nonComplicatePct = totalNon > 0 ? round1((b.nonComplicate / totalNon)  * 100) : 0;
+            const totalPct       = grand     > 0 ? round1((rowTotal        / grand)     * 100) : 0;
             return (
               <tr key={b.label} className={cn("border-b border-border", isPass ? "bg-green-50/60 dark:bg-green-950/20" : "bg-red-50/40 dark:bg-red-950/10")}>
                 <td className="px-3 py-1.5 font-medium">
@@ -612,11 +616,11 @@ function PeriodTable({ sla }: { sla: SlaComputed }) {
                   </span>
                 </td>
                 <Td>{fmt(b.complicate)}</Td>
-                <Td muted>{b.complicatePct}%</Td>
+                <Td muted>{complicatePct}%</Td>
                 <Td border>{fmt(b.nonComplicate)}</Td>
-                <Td muted>{b.nonComplicatePct}%</Td>
-                <Td border>{fmt(b.total)}</Td>
-                <Td muted>{b.totalPct}%</Td>
+                <Td muted>{nonComplicatePct}%</Td>
+                <Td border>{fmt(rowTotal)}</Td>
+                <Td muted>{totalPct}%</Td>
               </tr>
             );
           })}
