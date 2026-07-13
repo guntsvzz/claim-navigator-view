@@ -152,10 +152,10 @@ const actualVsYtd = [
 ];
 
 const seasonality = [
-  { m: "Jan", v: 6.1 }, { m: "Feb", v: 5.8 }, { m: "Mar", v: 7.4 },
-  { m: "Apr", v: 6.9 }, { m: "May", v: 7.8 }, { m: "Jun", v: 8.6 },
-  { m: "Jul", v: 9.4 }, { m: "Aug", v: 10.2 }, { m: "Sep", v: 9.1 },
-  { m: "Oct", v: 8.4 }, { m: "Nov", v: 7.9 }, { m: "Dec", v: 6.7 },
+  { m: "Jan", v: 7.3 }, { m: "Feb", v: 6.9 }, { m: "Mar", v: 8.8 },
+  { m: "Apr", v: 8.2 }, { m: "May", v: 9.3 }, { m: "Jun", v: 10.3 },
+  { m: "Jul", v: 11.2 }, { m: "Aug", v: 12.1 }, { m: "Sep", v: 10.8 },
+  { m: "Oct", v: 10.0 }, { m: "Nov", v: 9.4 }, { m: "Dec", v: 8.0 },
 ];
 
 // Section 05 — Financial discipline (SAMPLE — pending Finance/survey data)
@@ -659,10 +659,10 @@ function ExecutivePage() {
           <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis dataKey="m" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `฿${v}M`} />
             <Tooltip
               contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
-              formatter={(v: number) => `${v}%`}
+              formatter={(v: number) => [`฿${v}M`, "Revenue"]}
             />
             <Line type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
