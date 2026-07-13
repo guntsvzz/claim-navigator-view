@@ -67,7 +67,7 @@ import {
   type SlaComputed,
   type SlaId,
 } from "@/lib/sla-data";
-import { getSlaView } from "@/lib/sla-claims";
+// import { getSlaView } from "@/lib/sla-claims";
 
 /* ============================================================================
  * ClientDetail — BVTPA "Claim Analysis Performance" report layout
@@ -106,10 +106,6 @@ export function ClientDetail({
 
   if (!sla) return <EmptyDetail clientName={client.name} onBack={onBack} />;
 
-  // Derive all UI data from claims array via getSlaView
-  const slaView = useMemo(() => getSlaView(sla.slaId, client.id), [sla.slaId, client.id]);
-
-  // Fallback to old data for alerts/forecasts (which we keep from existing SlaData)
   const data = client.data[sla.slaId]!;
   const unit = sla.target.unit;
   const targetPct = sla.target.passTargetPct;
@@ -120,14 +116,14 @@ export function ClientDetail({
   const forecastHealth = healthFromPct(forecastEnd, targetPct);
   const forecastRisk = riskFromHealth(forecastHealth);
 
-  // Monthly chart — "by Month" mode: all 12 months stacked (derived from claims via slaView)
+  // Monthly chart — "by Month" mode: all 12 months stacked
   const byMonthData = useMemo(() => {
-    const rows = slaView.monthly.map((m) => ({
+    const rows = data.monthly.map((m) => ({
       month: m.month,
       pass: m.pass,
       notPass: m.notPass,
       passPct: m.passPct,
-      total: m.total,
+      total: m.pass + m.notPass,
       target: targetPct,
       forecast: null as number | null,
       band: undefined as [number, number] | undefined,
@@ -150,35 +146,38 @@ export function ClientDetail({
       });
     });
     return rows;
-  }, [slaView.monthly, futures, targetPct]);
+  }, [data.monthly, futures, targetPct]);
 
-  // Monthly chart — "by Case Type" mode: 2 bars for the selected month (derived from claims)
+  // Monthly chart — "by Case Type" mode: 2 bars for the selected month
   const byCaseTypeData = useMemo(() => {
-    const monthNum = slaView.monthly.findIndex((m) => m.month === caseTypeMonth) + 1;
-    if (monthNum < 1) return [];
-    const caseData = slaView.caseTypeByMonth(monthNum);
+    const m = data.monthly.find((x) => x.month === caseTypeMonth) ?? data.monthly[0];
+    if (!m) return [];
+    const cTotal = m.complicate;
+    const ncTotal = m.nonComplicate;
+    const cPass = Math.round(m.pass * (cTotal / (cTotal + ncTotal || 1)));
+    const ncPass = m.pass - cPass;
     return [
       {
         name: "Complicate",
-        pass: caseData.complicate.pass,
-        notPass: caseData.complicate.notPass,
-        passPct: caseData.complicate.passPct,
-        total: caseData.complicate.total,
+        pass: cPass,
+        notPass: cTotal - cPass,
+        passPct: cTotal ? round1((cPass / cTotal) * 100) : 0,
+        total: cTotal,
       },
       {
         name: "Non-Complicate",
-        pass: caseData.nonComplicate.pass,
-        notPass: caseData.nonComplicate.notPass,
-        passPct: caseData.nonComplicate.passPct,
-        total: caseData.nonComplicate.total,
+        pass: ncPass,
+        notPass: ncTotal - ncPass,
+        passPct: ncTotal ? round1((ncPass / ncTotal) * 100) : 0,
+        total: ncTotal,
       },
     ];
-  }, [slaView, caseTypeMonth]);
+  }, [data.monthly, caseTypeMonth]);
 
   // Donut data — uses donutTotal (= total − backlog), not total
   const donutData = [
-    { name: "Complicate",     value: slaView.complicate    },
-    { name: "Non-Complicate", value: slaView.nonComplicate },
+    { name: "Complicate",     value: sla.complicate    },
+    { name: "Non-Complicate", value: sla.nonComplicate },
   ];
 
   return (
@@ -254,30 +253,30 @@ export function ClientDetail({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
 
-          {/* A) FOUR SOLID SUMMARY TILES (derived from claims) */}
+          {/* A) FOUR SOLID SUMMARY TILES */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SolidTile
               color="#2563EB"
               label="No. of Claim"
-              value={fmt(slaView.totalClaims)}
+              value={fmt(sla.total)}
               sub="total in range"
             />
             <SolidTile
               color="#16a34a"
               label="Pass"
-              value={fmt(slaView.passCount)}
-              sub={`${slaView.passPct}% of claims`}
+              value={fmt(sla.pass)}
+              sub={`${sla.passPct}% of claims`}
             />
             <SolidTile
               color="#dc2626"
               label="Not Pass"
-              value={fmt(slaView.notPassCount)}
-              sub={`${slaView.notPassPct}% of claims`}
+              value={fmt(sla.notPass)}
+              sub={`${round1(100 - sla.passPct)}% of claims`}
             />
             <SolidTile
               color="#92400e"
               label="Backlog · ย้อนหลัง"
-              value={fmt(slaView.backlogCount)}
+              value={fmt(sla.backlog)}
               sub="awaiting closure"
             />
           </div>
@@ -304,7 +303,7 @@ export function ClientDetail({
                           const RADIAN = Math.PI / 180;
                           const rx = cx + (or + 18) * Math.cos(-midAngle * RADIAN);
                           const ry = cy + (or + 18) * Math.sin(-midAngle * RADIAN);
-                          const pct = slaView.donutTotal > 0 ? round1((value / slaView.donutTotal) * 100) : 0;
+                          const pct = sla.donutTotal > 0 ? round1((value / sla.donutTotal) * 100) : 0;
                           return (
                             <text x={rx} y={ry} textAnchor={rx > cx ? "start" : "end"} dominantBaseline="central" fontSize={10} fill="currentColor">
                               {`${fmt(value)} (${pct}%)`}
