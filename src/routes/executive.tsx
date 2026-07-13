@@ -31,7 +31,6 @@ import {
   Smartphone,
   Sparkles,
   Star,
-  Swords,
   Target,
   TrendingUp,
   Users,
@@ -152,19 +151,12 @@ const actualVsYtd = [
 ];
 
 const seasonality = [
-  { m: "Jan", v: 6.1 }, { m: "Feb", v: 5.8 }, { m: "Mar", v: 7.4 },
-  { m: "Apr", v: 6.9 }, { m: "May", v: 7.8 }, { m: "Jun", v: 8.6 },
-  { m: "Jul", v: 9.4 }, { m: "Aug", v: 10.2 }, { m: "Sep", v: 9.1 },
-  { m: "Oct", v: 8.4 }, { m: "Nov", v: 7.9 }, { m: "Dec", v: 6.7 },
+  { m: "Jan", v: 7.3 }, { m: "Feb", v: 6.9 }, { m: "Mar", v: 8.8 },
+  { m: "Apr", v: 8.2 }, { m: "May", v: 9.3 }, { m: "Jun", v: 10.3 },
+  { m: "Jul", v: 11.2 }, { m: "Aug", v: 12.1 }, { m: "Sep", v: 10.8 },
+  { m: "Oct", v: 10.0 }, { m: "Nov", v: 9.4 }, { m: "Dec", v: 8.0 },
 ];
 
-// Section 05 — Financial discipline (SAMPLE — pending Finance/survey data)
-const competitors = [
-  { name: "This Account", price: "Baseline", service: 94, nps: 48, network: 320, us: true },
-  { name: "Competitor A (AXA-like)", price: "−4%", service: 91, nps: 42, network: 280, us: false },
-  { name: "Competitor B (Allianz-like)", price: "+2%", service: 89, nps: 39, network: 340, us: false },
-  { name: "Competitor C (Local)", price: "−7%", service: 86, nps: 31, network: 240, us: false },
-];
 
 // Section 05 — Renewal histogram (MANUAL · BD+KAM)
 const renewalHistory = [
@@ -659,10 +651,10 @@ function ExecutivePage() {
           <LineChart data={seasonality} margin={{ left: -10, right: 8, top: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
             <XAxis dataKey="m" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `฿${v}M`} />
             <Tooltip
               contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
-              formatter={(v: number) => `${v}%`}
+              formatter={(v: number) => [`฿${v}M`, "Revenue"]}
             />
             <Line type="monotone" dataKey="v" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
@@ -834,52 +826,6 @@ function ExecutivePage() {
         <KpiCard label="Overdue Rate" value="3.2%" sub="Invoices past 30 days" icon={CreditCard} readiness="sample" />
         <KpiCard label="Credit Risk" value="Low" sub="AA internal rating" icon={CheckCircle2} tone="success" readiness="sample" />
       </div>
-
-      {/* Competitor Comparison — sample */}
-      <Panel
-        title="Competitor Comparison"
-        subtitle="Price & service positioning snapshot"
-        actions={
-          <>
-            <ReadinessBadge state="sample" />
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Swords className="h-3 w-3" /> vs 3 competitors
-            </span>
-          </>
-        }
-      >
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="pb-2 text-left">Player</th>
-              <th className="pb-2 text-right">Price</th>
-              <th className="pb-2 text-right">SLA %</th>
-              <th className="pb-2 text-right">NPS</th>
-              <th className="pb-2 text-right">Network</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {competitors.map((c) => (
-              <tr key={c.name} className={cn(c.us && "bg-muted/40")}>
-                <td className="py-2.5 font-medium">
-                  {c.us ? (
-                    <span className="inline-flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-primary" />
-                      {c.name}
-                    </span>
-                  ) : (
-                    c.name
-                  )}
-                </td>
-                <td className="py-2.5 text-right font-mono tabular-nums">{c.price}</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">{c.service}%</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">+{c.nps}</td>
-                <td className="py-2.5 text-right font-mono tabular-nums">{c.network}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Panel>
 
       {/* 6. Customer Growth Direction & Strategy */}
       <SectionHeader index="06" title="Customer Growth Direction &amp; Strategy" subtitle="Where is this client heading — so we can prepare" />
