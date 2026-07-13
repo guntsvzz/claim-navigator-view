@@ -100,8 +100,11 @@ export function ClientDetail({
   const [thresholdOpen, setThresholdOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [monthMode, setMonthMode] = useState<"byMonth" | "byCaseType">("byMonth");
-  // For "by Case Type" mode — which month to show
-  const [caseTypeMonth, setCaseTypeMonth] = useState<string>("Jan");
+  // For "by Case Type" mode — which month to show (default = latest month)
+  const [caseTypeMonth, setCaseTypeMonth] = useState<string>(() => {
+    const data = client.data[selectedSla];
+    return data?.monthly ? data.monthly[data.monthly.length - 1].month : "Jan";
+  });
 
   if (!sla) return <EmptyDetail clientName={client.name} onBack={onBack} />;
 
@@ -729,7 +732,7 @@ function ByMonthChart({ data, targetPct }: { data: ByMonthRow[]; targetPct: numb
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Total row */}
+      {/* Total row — monthly totals */}
       <div className="mt-3 overflow-x-auto rounded-md border border-border">
         <table className="w-full min-w-[700px] text-xs">
           <tbody>
@@ -749,7 +752,8 @@ function ByMonthChart({ data, targetPct }: { data: ByMonthRow[]; targetPct: numb
 }
 
 /* ============================================================================
- * D-2) "by Case Type" chart — 2 bars for selected month
+ * D-2) "by Case Type" chart — 2 stacked bars (Complicate, Non-Complicate) 
+ *      for a single selected month, with Pass% line (no target/forecast lines)
  * ========================================================================== */
 
 type CaseTypeRow = { name: string; pass: number; notPass: number; passPct: number; total: number };
@@ -792,6 +796,7 @@ function ByCaseTypeChart({
             fontSize={10}
             tickLine={false}
             axisLine={false}
+            label={{ value: "No. of Claim", angle: -90, position: "insideLeft", style: { textAnchor: "middle", fontSize: 10, fill: "var(--color-muted-foreground)" } }}
             tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
           />
           <YAxis
@@ -802,22 +807,18 @@ function ByCaseTypeChart({
             fontSize={10}
             tickLine={false}
             axisLine={false}
+            label={{ value: "% Pass", angle: 90, position: "insideRight", style: { textAnchor: "middle", fontSize: 10, fill: "var(--color-muted-foreground)" } }}
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip contentStyle={tooltipStyle} />
-          <ReferenceLine
-            yAxisId="right"
-            y={targetPct}
-            stroke="#3b82f6"
-            strokeDasharray="6 4"
-            label={{ value: `Target ${targetPct}%`, fill: "#3b82f6", fontSize: 10, position: "insideTopRight" }}
-          />
-          <Bar yAxisId="left" dataKey="pass" name="Pass" stackId="a" fill="#16a34a">
+          {/* Stacked Pass (green, bottom) + Not Pass (red, top) */}
+          <Bar yAxisId="left" dataKey="pass" name="Pass" stackId="a" fill="#16a34a" radius={[0, 0, 0, 0]}>
             <LabelList dataKey="pass" position="inside" style={{ fill: "#fff", fontSize: 11, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? fmt(v) : "")} />
           </Bar>
           <Bar yAxisId="left" dataKey="notPass" name="Not Pass" stackId="a" fill="#dc2626" radius={[3, 3, 0, 0]}>
             <LabelList dataKey="notPass" position="inside" style={{ fill: "#fff", fontSize: 11, fontWeight: 600 }} formatter={(v: number) => (v > 0 ? fmt(v) : "")} />
           </Bar>
+          {/* Pass% line with markers and labels */}
           <Line
             yAxisId="right"
             type="monotone"
@@ -825,7 +826,8 @@ function ByCaseTypeChart({
             name="Pass%"
             stroke="#3b82f6"
             strokeWidth={2.5}
-            dot={{ r: 4 }}
+            dot={{ r: 4, fill: "#3b82f6" }}
+            connectNulls
           >
             <LabelList dataKey="passPct" position="top" style={{ fill: "#3b82f6", fontSize: 11, fontWeight: 700 }} formatter={(v: number) => `${v}%`} />
           </Line>
@@ -833,7 +835,7 @@ function ByCaseTypeChart({
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Total row */}
+      {/* Total row — by case type totals for selected month */}
       <div className="mt-3 rounded-md border border-border overflow-x-auto">
         <table className="w-full text-xs">
           <tbody>
