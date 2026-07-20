@@ -526,10 +526,10 @@ export function ClientDetail({
 
 function SolidTile({ color, label, value, sub }: { color: string; label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-lg p-4 text-white" style={{ backgroundColor: color }}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-85">{label}</div>
-      <div className="mt-1.5 text-3xl font-bold tabular-nums leading-none">{value}</div>
-      <div className="mt-1.5 text-[11px] opacity-80">{sub}</div>
+    <div className="rounded-lg px-3 py-2 text-white" style={{ backgroundColor: color }}>
+      <div className="text-[10px] font-semibold uppercase tracking-wider opacity-85">{label}</div>
+      <div className="mt-0.5 text-xl font-bold tabular-nums leading-none">{value}</div>
+      <div className="mt-0.5 text-[10px] opacity-80">{sub}</div>
     </div>
   );
 }
