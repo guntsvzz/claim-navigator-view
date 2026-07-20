@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, Lock, RefreshCw } from "lucide-react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,6 @@ import {
   INITIAL_CLIENTS,
   type Client,
   type RangeKey,
-  type Role,
   type SlaId,
 } from "@/lib/sla-data";
 import { PortfolioOverview } from "@/components/kpi/portfolio-overview";
@@ -52,11 +51,10 @@ function KpiAlertsPage() {
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rangeKey, setRangeKey] = useState<RangeKey>("thisMonth");
-  const [role, setRole] = useState<Role>("Team Lead");
   const [loadState, setLoadState] = useState<LoadState>("ready");
   const [updatedAt, setUpdatedAt] = useState<string>(nowLabel);
 
-  const readOnly = role === "Executive";
+  const readOnly = false;
 
   // Clients scoped to the active Insurer/Provider mode from the sidebar.
   const scopedClients = useMemo(
@@ -168,24 +166,6 @@ function KpiAlertsPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Role indicator (role from login) */}
-            <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-              <SelectTrigger className="h-9 w-[168px]" aria-label="Signed-in role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Team Lead">Team Lead</SelectItem>
-                <SelectItem value="Executive">Executive (read-only)</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {readOnly && (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
-                <Lock className="h-3.5 w-3.5" />
-                Read-only
-              </span>
-            )}
 
             <div className="hidden items-center text-xs text-muted-foreground sm:flex">
               Updated {updatedAt}

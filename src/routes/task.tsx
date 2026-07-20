@@ -13,7 +13,6 @@ import {
   LayoutGrid,
   ListChecks,
   ListTodo,
-  Lock,
   Plus,
   RefreshCw,
   Repeat,
@@ -58,7 +57,7 @@ export const Route = createFileRoute("/task")({
 
 type TaskStatus = "completed" | "in-progress" | "overdue" | "upcoming";
 type Priority = "high" | "medium" | "low";
-type Role = "Team Lead" | "Executive" | "Team Member";
+type Role = "Team Member";
 
 interface Member {
   id: string;
@@ -373,7 +372,7 @@ const recurringTasks: RecurringTask[] = [
 const suggestions: Suggestion[] = [
   { id: "s1", title: "ส่งสรุปแนวโน้มเคลมรายเดือน", detail: "BVTPA ส่งสรุปแนวโน้มเคลมประจำเดือนให้ลูกค้า", eta: "~5 วัน", priority: "medium" },
   { id: "s2", title: "UAT สำหรับ Auto-Adjudication", detail: "ส่งผลการทดสอบให้ทีมลูกค้าเพื่อตรวจสอบและอนุมัติ", eta: "~5 วัน", priority: "medium" },
-  { id: "s3", title: "จัดทำเอกสารเคลมผ่านแฟกซ์", detail: "พัฒนาเช็กลิสต์สำหรับกระบวนการเคลมผ่านแฟกซ์", eta: "~5 วัน", priority: "high" },
+  { id: "s3", title: "จัดทำเอกส���รเคลมผ่านแฟกซ์", detail: "พัฒนาเช็กลิสต์สำหรับกระบวนการเคลมผ่านแฟกซ์", eta: "~5 วัน", priority: "high" },
   { id: "s4", title: "ศึกษาความเป็นไปได้ Digital Claim", detail: "ศึกษาความเป็นไปได้ในการขยายบริการ Digital Claim", eta: "~7 วัน", priority: "low" },
 ];
 
@@ -462,19 +461,19 @@ function TaskPage() {
   const [tab, setTab] = useState<"tasks" | "recurring">("tasks");
   const [viewMode, setViewMode] = useState<"team" | "timeline">("team");
   const [rangeKey, setRangeKey] = useState<keyof typeof dateRanges>("thisWeek");
-  const [role, setRole] = useState<Role>("Team Lead");
+  const [role] = useState<Role>("Team Member");
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("ready");
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  const readOnly = role === "Executive";
+  const readOnly = false;
   const range = dateRanges[rangeKey];
 
   // Role-scoped members
   const scopedMembers = useMemo(
-    () => (role === "Team Member" ? members.filter((m) => m.id === CURRENT_USER_ID) : members),
-    [role],
+    () => members.filter((m) => m.id === CURRENT_USER_ID),
+    [],
   );
   const scopedMemberIds = useMemo(() => new Set(scopedMembers.map((m) => m.id)), [scopedMembers]);
 
@@ -565,18 +564,6 @@ function TaskPage() {
             </Select>
           </div>
 
-          {/* Role */}
-          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-            <SelectTrigger className="h-9 w-[168px]" aria-label="เลือกบทบาท">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Team Lead">Team Lead</SelectItem>
-              <SelectItem value="Executive">Executive (อ่านอย่างเดียว)</SelectItem>
-              <SelectItem value="Team Member">Team Member</SelectItem>
-            </SelectContent>
-          </Select>
-
           {/* View switch */}
           <div className="flex items-center rounded-md border border-border bg-card p-0.5">
             <ViewToggle active={viewMode === "team"} onClick={() => setViewMode("team")} icon={LayoutGrid}>
@@ -605,14 +592,7 @@ function TaskPage() {
           <RefreshCw className={cn("h-3.5 w-3.5", loadState === "loading" && "animate-spin")} />
           อัปเดตล่าสุด {fmtTime(updatedAt)} น.
         </button>
-        {readOnly && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            <Lock className="h-3 w-3" /> อ่านอย่างเดียว
-          </span>
-        )}
-        {role === "Team Member" && (
-          <span className="text-[11px] text-muted-foreground">แสดงเฉพาะงานของคุณ</span>
-        )}
+        <span className="text-[11px] text-muted-foreground">แสดงเฉพาะงานของคุณ</span>
       </div>
 
       {loadState === "loading" ? (
