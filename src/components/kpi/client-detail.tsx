@@ -24,7 +24,6 @@ import {
   Download,
   History,
   Info,
-  Sliders,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -80,7 +79,6 @@ export function ClientDetail({
   onBack,
   onSelectClient,
   onSetThreshold,
-  onToggleAlert,
   onToggleAllAlerts,
 }: {
   client: Client;
@@ -89,7 +87,6 @@ export function ClientDetail({
   onBack: () => void;
   onSelectClient: (id: string) => void;
   onSetThreshold: (clientId: string, slaId: SlaId, next: number) => void;
-  onToggleAlert: (clientId: string, slaId: SlaId) => void;
   onToggleAllAlerts: (clientId: string, enable: boolean) => void;
 }) {
   const summary = useMemo(() => summarizeClient(client), [client]);
@@ -188,128 +185,76 @@ export function ClientDetail({
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Breadcrumb + back + client switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-            <button onClick={onBack} className="text-muted-foreground hover:text-foreground hover:underline">
-              All clients
-            </button>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold">{client.name}</span>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Switch client</span>
-          <Select value={client.id} onValueChange={onSelectClient}>
-            <SelectTrigger className="h-8 w-[200px]" aria-label="Switch client">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* SLA health strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3">
-        <span className="mr-1 text-xs font-medium text-muted-foreground">This client&apos;s SLAs:</span>
-        <StripCount tone="success"     label="On target"     count={summary.onTarget}    />
-        <StripCount tone="warning"     label="At risk"       count={summary.atRisk}      />
-        <StripCount tone="destructive" label="Below target"  count={summary.belowTarget} />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {contracted.length} contracted SLA{contracted.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {/* Master alert toggle */}
+    <div className="space-y-2">
+      {/* Alert status + SLA tabs — single combined row */}
       <div className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors",
+        "flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors",
         allEnabled ? "border-primary/40 bg-primary/5" : "border-border bg-card",
       )}>
-        <div className="flex items-center gap-3">
-          <span className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-md",
-            allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-          )}>
-            {allEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
-          </span>
-          <div>
-            <div className="text-sm font-semibold">
-              Alerts for {client.name}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {noneEnabled
-                ? "All alerts disabled — no notifications will fire"
-                : allEnabled
-                  ? `All ${contracted.length} SLA alerts enabled`
-                  : `${enabledCount} of ${contracted.length} SLA alerts enabled`}
-            </div>
-          </div>
+        {/* Bell icon */}
+        <span className={cn(
+          "grid h-7 w-7 shrink-0 place-items-center rounded-md",
+          allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+        )}>
+          {allEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+        </span>
+
+        {/* SLA tabs inline */}
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Select SLA">
+          {contracted.map((c) => {
+            const active = c.slaId === sla.slaId;
+            return (
+              <button
+                key={c.slaId}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSelectedSla(c.slaId)}
+                className={cn(
+                  "flex flex-col items-start rounded-md border px-3 py-1 text-left transition-colors",
+                  active
+                    ? "border-[#1a3a6b] bg-[#1a3a6b] text-white shadow-sm"
+                    : "border-border bg-card hover:bg-accent/50",
+                )}
+              >
+                <span className="text-xs font-semibold">{c.def.name}</span>
+                <span className={cn("text-[10px]", active ? "text-white/75" : "text-muted-foreground")}>
+                  Target &lt; {c.target.target} {c.target.unit}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Alert enable/disable controls pushed to the right */}
+        <div className="ml-auto flex items-center gap-2">
           {!noneEnabled && !allEnabled && (
-            <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning">
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
               Partial
             </span>
           )}
           <Button
             variant={allEnabled ? "default" : "outline"}
             size="sm"
-            className="h-9 gap-2"
+            className="h-7 gap-1.5 text-xs"
             disabled={readOnly}
             onClick={() => onToggleAllAlerts(client.id, !allEnabled)}
             aria-pressed={allEnabled}
           >
             {allEnabled ? (
-              <><BellOff className="h-4 w-4" /> Disable all</>
+              <><BellOff className="h-3.5 w-3.5" /> Disable all</>
             ) : (
-              <><Bell className="h-4 w-4" /> Enable all</>
+              <><Bell className="h-3.5 w-3.5" /> Enable all</>
             )}
           </Button>
         </div>
       </div>
 
-      {/* SLA selector tabs */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Select SLA">
-        {contracted.map((c) => {
-          const active = c.slaId === sla.slaId;
-          return (
-            <button
-              key={c.slaId}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSelectedSla(c.slaId)}
-              className={cn(
-                "flex flex-col items-start rounded-lg border px-3.5 py-2 text-left transition-colors",
-                active
-                  ? "border-[#1a3a6b] bg-[#1a3a6b] text-white shadow-sm"
-                  : "border-border bg-card hover:bg-accent/50",
-              )}
-            >
-              <span className="text-sm font-semibold">{c.def.name}</span>
-              <span className={cn("text-[11px]", active ? "text-white/75" : "text-muted-foreground")}>
-                Target &lt; {c.target.target} {c.target.unit}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* ---- Report body ---- */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-3">
 
           {/* A) FOUR SOLID SUMMARY TILES */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <SolidTile
               color="#2563EB"
               label="No. of Claim"
@@ -524,30 +469,11 @@ export function ClientDetail({
                 </div>
               </div>
 
-              <button
-                onClick={() => !readOnly && onToggleAlert(client.id, sla.slaId)}
-                disabled={readOnly}
-                aria-pressed={data.alertEnabled}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
-                  data.alertEnabled ? "border-primary/40 bg-primary/5" : "border-border",
-                  readOnly && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <div>
-                  <div className="text-xs text-muted-foreground">Alert for this SLA only</div>
-                  <div className="text-sm font-semibold">{data.alertEnabled ? "Enabled" : "Disabled"}</div>
-                </div>
-                <span className={cn("grid h-8 w-8 place-items-center rounded-md", data.alertEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                  {data.alertEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                </span>
-              </button>
+
             </div>
 
 
           </Panel>
-
-          <AlertConditionPanel readOnly={readOnly} targetPct={targetPct} />
 
           <Panel
             title="Recent alerts"
@@ -600,10 +526,10 @@ export function ClientDetail({
 
 function SolidTile({ color, label, value, sub }: { color: string; label: string; value: string; sub: string }) {
   return (
-    <div className="rounded-lg p-4 text-white" style={{ backgroundColor: color }}>
-      <div className="text-xs font-semibold uppercase tracking-wider opacity-85">{label}</div>
-      <div className="mt-1.5 text-3xl font-bold tabular-nums leading-none">{value}</div>
-      <div className="mt-1.5 text-[11px] opacity-80">{sub}</div>
+    <div className="rounded-lg px-3 py-2 text-white" style={{ backgroundColor: color }}>
+      <div className="text-[10px] font-semibold uppercase tracking-wider opacity-85">{label}</div>
+      <div className="mt-0.5 text-xl font-bold tabular-nums leading-none">{value}</div>
+      <div className="mt-0.5 text-[10px] opacity-80">{sub}</div>
     </div>
   );
 }
@@ -902,57 +828,6 @@ function ByCaseTypeChart({
         </table>
       </div>
     </>
-  );
-}
-
-/* ============================================================================
- * Alert condition panel
- * ========================================================================== */
-
-function AlertConditionPanel({ readOnly, targetPct }: { readOnly: boolean; targetPct: number }) {
-  const [trigger, setTrigger] = useState("below");
-  const [margin, setMargin] = useState("3");
-  const [saved, setSaved] = useState(true);
-
-  return (
-    <Panel title="Alert condition" subtitle="When should this SLA alert?" actions={<Sliders className="h-4 w-4 text-muted-foreground" />}>
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="ac-trigger">Fire when Pass%</Label>
-          <Select value={trigger} onValueChange={(v) => { setTrigger(v); setSaved(false); }}>
-            <SelectTrigger id="ac-trigger" className="h-9" disabled={readOnly}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="below">Is below target</SelectItem>
-              <SelectItem value="margin">Within margin of target</SelectItem>
-              <SelectItem value="trend">Is trending down</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {trigger === "margin" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="ac-margin">Margin (%)</Label>
-            <Input
-              id="ac-margin"
-              type="number"
-              min={0}
-              max={20}
-              value={margin}
-              disabled={readOnly}
-              onChange={(e) => { setMargin(e.target.value); setSaved(false); }}
-              className="h-9"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Alert when Pass% is within {margin || 0}% above the {targetPct}% target.
-            </p>
-          </div>
-        )}
-        <Button className="w-full" disabled={readOnly || saved} onClick={() => setSaved(true)}>
-          {saved ? "Saved" : "Save condition"}
-        </Button>
-      </div>
-    </Panel>
   );
 }
 

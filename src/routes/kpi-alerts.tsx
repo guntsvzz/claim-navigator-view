@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,10 +12,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
-  DATE_RANGES,
   INITIAL_CLIENTS,
   type Client,
-  type RangeKey,
   type SlaId,
 } from "@/lib/sla-data";
 import { PortfolioOverview } from "@/components/kpi/portfolio-overview";
@@ -50,7 +48,6 @@ function KpiAlertsPage() {
 
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [rangeKey, setRangeKey] = useState<RangeKey>("thisMonth");
   const [loadState, setLoadState] = useState<LoadState>("ready");
   const [updatedAt, setUpdatedAt] = useState<string>(nowLabel);
 
@@ -105,21 +102,6 @@ function KpiAlertsPage() {
     );
   }
 
-  function handleToggleAlert(clientId: string, slaId: SlaId) {
-    if (readOnly) return;
-    setClients((prev) =>
-      prev.map((c) => {
-        if (c.id !== clientId) return c;
-        const data = c.data[slaId];
-        if (!data) return c;
-        return {
-          ...c,
-          data: { ...c.data, [slaId]: { ...data, alertEnabled: !data.alertEnabled } },
-        };
-      }),
-    );
-  }
-
   function handleToggleAllAlerts(clientId: string, enable: boolean) {
     if (readOnly) return;
     setClients((prev) =>
@@ -136,48 +118,63 @@ function KpiAlertsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* ---------------- Header ---------------- */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="rounded-lg border border-border bg-card px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: title block OR breadcrumb when inside a client */}
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               Key Account Management
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">KPI &amp; SLA Alerts</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              SLA performance, thresholds &amp; predictive risk per client
-            </p>
+            <h1 className="text-lg font-bold tracking-tight leading-tight">KPI &amp; SLA Alerts</h1>
+            {!selectedClient && (
+              <p className="text-xs text-muted-foreground">
+                SLA performance, thresholds &amp; predictive risk per client
+              </p>
+            )}
           </div>
 
+          {/* Right: breadcrumb + switch (client view) OR updated + refresh (overview) */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <Select value={rangeKey} onValueChange={(v) => setRangeKey(v as RangeKey)}>
-                <SelectTrigger className="h-9 w-[160px]" aria-label="Select date range">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(DATE_RANGES).map(([key, r]) => (
-                    <SelectItem key={key} value={key}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+            {selectedClient ? (
+              <>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setSelectedId(null)}>
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back
+                </Button>
+                <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs">
+                  <button onClick={() => setSelectedId(null)} className="text-muted-foreground hover:text-foreground hover:underline">
+                    All clients
+                  </button>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-semibold">{selectedClient.name}</span>
+                </nav>
+                <span className="text-xs text-muted-foreground hidden sm:inline">Switch:</span>
+                <Select value={selectedClient.id} onValueChange={(id) => setSelectedId(id)}>
+                  <SelectTrigger className="h-7 w-[160px] text-xs" aria-label="Switch client">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {scopedClients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="h-4 w-px bg-border" />
+              </>
+            ) : null}
             <div className="hidden items-center text-xs text-muted-foreground sm:flex">
               Updated {updatedAt}
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-2"
+              className="h-7 gap-1.5 text-xs"
               onClick={handleRefresh}
               disabled={loadState === "loading"}
             >
-              <RefreshCw className={cn("h-4 w-4", loadState === "loading" && "animate-spin")} />
+              <RefreshCw className={cn("h-3.5 w-3.5", loadState === "loading" && "animate-spin")} />
               Refresh
             </Button>
           </div>
@@ -187,14 +184,13 @@ function KpiAlertsPage() {
       {/* ---------------- Body: Level 1 overview ↔ Level 2 detail ---------------- */}
       {selectedClient ? (
         <ClientDetail
-          key={`${selectedClient.id}-${rangeKey}`}
+          key={selectedClient.id}
           client={selectedClient}
           clients={scopedClients}
           readOnly={readOnly}
           onBack={() => setSelectedId(null)}
           onSelectClient={(id) => setSelectedId(id)}
           onSetThreshold={handleSetThreshold}
-          onToggleAlert={handleToggleAlert}
           onToggleAllAlerts={handleToggleAllAlerts}
         />
       ) : (
