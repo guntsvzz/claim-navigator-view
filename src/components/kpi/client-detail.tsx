@@ -24,7 +24,6 @@ import {
   Download,
   History,
   Info,
-  Sliders,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -80,7 +79,6 @@ export function ClientDetail({
   onBack,
   onSelectClient,
   onSetThreshold,
-  onToggleAlert,
   onToggleAllAlerts,
 }: {
   client: Client;
@@ -89,7 +87,6 @@ export function ClientDetail({
   onBack: () => void;
   onSelectClient: (id: string) => void;
   onSetThreshold: (clientId: string, slaId: SlaId, next: number) => void;
-  onToggleAlert: (clientId: string, slaId: SlaId) => void;
   onToggleAllAlerts: (clientId: string, enable: boolean) => void;
 }) {
   const summary = useMemo(() => summarizeClient(client), [client]);
@@ -513,30 +510,11 @@ export function ClientDetail({
                 </div>
               </div>
 
-              <button
-                onClick={() => !readOnly && onToggleAlert(client.id, sla.slaId)}
-                disabled={readOnly}
-                aria-pressed={data.alertEnabled}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
-                  data.alertEnabled ? "border-primary/40 bg-primary/5" : "border-border",
-                  readOnly && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <div>
-                  <div className="text-xs text-muted-foreground">Alert for this SLA only</div>
-                  <div className="text-sm font-semibold">{data.alertEnabled ? "Enabled" : "Disabled"}</div>
-                </div>
-                <span className={cn("grid h-8 w-8 place-items-center rounded-md", data.alertEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                  {data.alertEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                </span>
-              </button>
+
             </div>
 
 
           </Panel>
-
-          <AlertConditionPanel readOnly={readOnly} targetPct={targetPct} />
 
           <Panel
             title="Recent alerts"
@@ -891,57 +869,6 @@ function ByCaseTypeChart({
         </table>
       </div>
     </>
-  );
-}
-
-/* ============================================================================
- * Alert condition panel
- * ========================================================================== */
-
-function AlertConditionPanel({ readOnly, targetPct }: { readOnly: boolean; targetPct: number }) {
-  const [trigger, setTrigger] = useState("below");
-  const [margin, setMargin] = useState("3");
-  const [saved, setSaved] = useState(true);
-
-  return (
-    <Panel title="Alert condition" subtitle="When should this SLA alert?" actions={<Sliders className="h-4 w-4 text-muted-foreground" />}>
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="ac-trigger">Fire when Pass%</Label>
-          <Select value={trigger} onValueChange={(v) => { setTrigger(v); setSaved(false); }}>
-            <SelectTrigger id="ac-trigger" className="h-9" disabled={readOnly}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="below">Is below target</SelectItem>
-              <SelectItem value="margin">Within margin of target</SelectItem>
-              <SelectItem value="trend">Is trending down</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {trigger === "margin" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="ac-margin">Margin (%)</Label>
-            <Input
-              id="ac-margin"
-              type="number"
-              min={0}
-              max={20}
-              value={margin}
-              disabled={readOnly}
-              onChange={(e) => { setMargin(e.target.value); setSaved(false); }}
-              className="h-9"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Alert when Pass% is within {margin || 0}% above the {targetPct}% target.
-            </p>
-          </div>
-        )}
-        <Button className="w-full" disabled={readOnly || saved} onClick={() => setSaved(true)}>
-          {saved ? "Saved" : "Save condition"}
-        </Button>
-      </div>
-    </Panel>
   );
 }
 

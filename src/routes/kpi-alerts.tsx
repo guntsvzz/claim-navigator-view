@@ -41,7 +41,6 @@ function KpiAlertsPage() {
 
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [rangeKey, setRangeKey] = useState<RangeKey>("thisMonth");
   const [loadState, setLoadState] = useState<LoadState>("ready");
   const [updatedAt, setUpdatedAt] = useState<string>(nowLabel);
 
@@ -91,21 +90,6 @@ function KpiAlertsPage() {
           ...c,
           targets: { ...c.targets, [slaId]: { ...prevTarget, target: next } },
           data: nextData ? { ...c.data, [slaId]: nextData } : c.data,
-        };
-      }),
-    );
-  }
-
-  function handleToggleAlert(clientId: string, slaId: SlaId) {
-    if (readOnly) return;
-    setClients((prev) =>
-      prev.map((c) => {
-        if (c.id !== clientId) return c;
-        const data = c.data[slaId];
-        if (!data) return c;
-        return {
-          ...c,
-          data: { ...c.data, [slaId]: { ...data, alertEnabled: !data.alertEnabled } },
         };
       }),
     );
@@ -162,14 +146,13 @@ function KpiAlertsPage() {
       {/* ---------------- Body: Level 1 overview ↔ Level 2 detail ---------------- */}
       {selectedClient ? (
         <ClientDetail
-          key={`${selectedClient.id}-${rangeKey}`}
+          key={selectedClient.id}
           client={selectedClient}
           clients={scopedClients}
           readOnly={readOnly}
           onBack={() => setSelectedId(null)}
           onSelectClient={(id) => setSelectedId(id)}
           onSetThreshold={handleSetThreshold}
-          onToggleAlert={handleToggleAlert}
           onToggleAllAlerts={handleToggleAllAlerts}
         />
       ) : (
