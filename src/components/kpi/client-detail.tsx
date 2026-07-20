@@ -219,17 +219,6 @@ export function ClientDetail({
         </div>
       </div>
 
-      {/* SLA health strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-4 py-3">
-        <span className="mr-1 text-xs font-medium text-muted-foreground">This client&apos;s SLAs:</span>
-        <StripCount tone="success"     label="On target"     count={summary.onTarget}    />
-        <StripCount tone="warning"     label="At risk"       count={summary.atRisk}      />
-        <StripCount tone="destructive" label="Below target"  count={summary.belowTarget} />
-        <span className="ml-auto text-xs text-muted-foreground">
-          {contracted.length} contracted SLA{contracted.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
       {/* Master alert toggle */}
       <div className={cn(
         "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors",

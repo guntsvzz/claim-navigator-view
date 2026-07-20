@@ -1,21 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarDays, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
-  DATE_RANGES,
   INITIAL_CLIENTS,
   type Client,
-  type RangeKey,
   type SlaId,
 } from "@/lib/sla-data";
 import { PortfolioOverview } from "@/components/kpi/portfolio-overview";
@@ -151,22 +142,6 @@ function KpiAlertsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <Select value={rangeKey} onValueChange={(v) => setRangeKey(v as RangeKey)}>
-                <SelectTrigger className="h-9 w-[160px]" aria-label="Select date range">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(DATE_RANGES).map(([key, r]) => (
-                    <SelectItem key={key} value={key}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="hidden items-center text-xs text-muted-foreground sm:flex">
               Updated {updatedAt}
             </div>
