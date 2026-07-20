@@ -185,26 +185,26 @@ export function ClientDetail({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Breadcrumb + back + client switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onBack}>
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back
           </Button>
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs">
             <button onClick={onBack} className="text-muted-foreground hover:text-foreground hover:underline">
               All clients
             </button>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="font-semibold">{client.name}</span>
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Switch client</span>
           <Select value={client.id} onValueChange={onSelectClient}>
-            <SelectTrigger className="h-8 w-[200px]" aria-label="Switch client">
+            <SelectTrigger className="h-7 w-[180px] text-xs" aria-label="Switch client">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -218,18 +218,18 @@ export function ClientDetail({
 
       {/* Master alert toggle */}
       <div className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors",
+        "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-colors",
         allEnabled ? "border-primary/40 bg-primary/5" : "border-border bg-card",
       )}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <span className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-md",
+            "grid h-7 w-7 shrink-0 place-items-center rounded-md",
             allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
           )}>
-            {allEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+            {allEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
           </span>
           <div>
-            <div className="text-sm font-semibold">
+            <div className="text-sm font-semibold leading-tight">
               Alerts for {client.name}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -243,29 +243,29 @@ export function ClientDetail({
         </div>
         <div className="flex items-center gap-2">
           {!noneEnabled && !allEnabled && (
-            <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning">
+            <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
               Partial
             </span>
           )}
           <Button
             variant={allEnabled ? "default" : "outline"}
             size="sm"
-            className="h-9 gap-2"
+            className="h-7 gap-1.5 text-xs"
             disabled={readOnly}
             onClick={() => onToggleAllAlerts(client.id, !allEnabled)}
             aria-pressed={allEnabled}
           >
             {allEnabled ? (
-              <><BellOff className="h-4 w-4" /> Disable all</>
+              <><BellOff className="h-3.5 w-3.5" /> Disable all</>
             ) : (
-              <><Bell className="h-4 w-4" /> Enable all</>
+              <><Bell className="h-3.5 w-3.5" /> Enable all</>
             )}
           </Button>
         </div>
       </div>
 
       {/* SLA selector tabs */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Select SLA">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Select SLA">
         {contracted.map((c) => {
           const active = c.slaId === sla.slaId;
           return (
@@ -275,14 +275,14 @@ export function ClientDetail({
               aria-selected={active}
               onClick={() => setSelectedSla(c.slaId)}
               className={cn(
-                "flex flex-col items-start rounded-lg border px-3.5 py-2 text-left transition-colors",
+                "flex flex-col items-start rounded-md border px-3 py-1.5 text-left transition-colors",
                 active
                   ? "border-[#1a3a6b] bg-[#1a3a6b] text-white shadow-sm"
                   : "border-border bg-card hover:bg-accent/50",
               )}
             >
-              <span className="text-sm font-semibold">{c.def.name}</span>
-              <span className={cn("text-[11px]", active ? "text-white/75" : "text-muted-foreground")}>
+              <span className="text-xs font-semibold">{c.def.name}</span>
+              <span className={cn("text-[10px]", active ? "text-white/75" : "text-muted-foreground")}>
                 Target &lt; {c.target.target} {c.target.unit}
               </span>
             </button>
@@ -291,11 +291,11 @@ export function ClientDetail({
       </div>
 
       {/* ---- Report body ---- */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-4">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-3">
 
           {/* A) FOUR SOLID SUMMARY TILES */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <SolidTile
               color="#2563EB"
               label="No. of Claim"

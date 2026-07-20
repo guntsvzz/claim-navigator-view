@@ -111,16 +111,16 @@ function KpiAlertsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* ---------------- Header ---------------- */}
-      <section className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="rounded-lg border border-border bg-card px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               Key Account Management
             </div>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">KPI &amp; SLA Alerts</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <h1 className="text-lg font-bold tracking-tight leading-tight">KPI &amp; SLA Alerts</h1>
+            <p className="text-xs text-muted-foreground">
               SLA performance, thresholds &amp; predictive risk per client
             </p>
           </div>
