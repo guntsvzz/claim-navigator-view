@@ -81,6 +81,7 @@ export function ClientDetail({
   onSelectClient,
   onSetThreshold,
   onToggleAlert,
+  onToggleAllAlerts,
 }: {
   client: Client;
   clients: Client[];
@@ -89,9 +90,15 @@ export function ClientDetail({
   onSelectClient: (id: string) => void;
   onSetThreshold: (clientId: string, slaId: SlaId, next: number) => void;
   onToggleAlert: (clientId: string, slaId: SlaId) => void;
+  onToggleAllAlerts: (clientId: string, enable: boolean) => void;
 }) {
   const summary = useMemo(() => summarizeClient(client), [client]);
   const contracted = summary.contracted;
+
+  // Master alert state: how many SLAs have alerts enabled
+  const enabledCount = contracted.filter((c) => client.data[c.slaId]?.alertEnabled).length;
+  const allEnabled = enabledCount === contracted.length;
+  const noneEnabled = enabledCount === 0;
 
   const [selectedSla, setSelectedSla] = useState<SlaId>(
     () => (contracted[0]?.slaId ?? "faxClaim") as SlaId,
@@ -221,6 +228,54 @@ export function ClientDetail({
         <span className="ml-auto text-xs text-muted-foreground">
           {contracted.length} contracted SLA{contracted.length === 1 ? "" : "s"}
         </span>
+      </div>
+
+      {/* Master alert toggle */}
+      <div className={cn(
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-colors",
+        allEnabled ? "border-primary/40 bg-primary/5" : "border-border bg-card",
+      )}>
+        <div className="flex items-center gap-3">
+          <span className={cn(
+            "grid h-9 w-9 shrink-0 place-items-center rounded-md",
+            allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+          )}>
+            {allEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+          </span>
+          <div>
+            <div className="text-sm font-semibold">
+              Alerts for {client.name}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {noneEnabled
+                ? "All alerts disabled — no notifications will fire"
+                : allEnabled
+                  ? `All ${contracted.length} SLA alerts enabled`
+                  : `${enabledCount} of ${contracted.length} SLA alerts enabled`}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {!noneEnabled && !allEnabled && (
+            <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning">
+              Partial
+            </span>
+          )}
+          <Button
+            variant={allEnabled ? "default" : "outline"}
+            size="sm"
+            className="h-9 gap-2"
+            disabled={readOnly}
+            onClick={() => onToggleAllAlerts(client.id, !allEnabled)}
+            aria-pressed={allEnabled}
+          >
+            {allEnabled ? (
+              <><BellOff className="h-4 w-4" /> Disable all</>
+            ) : (
+              <><Bell className="h-4 w-4" /> Enable all</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* SLA selector tabs */}
@@ -480,7 +535,7 @@ export function ClientDetail({
                 )}
               >
                 <div>
-                  <div className="text-xs text-muted-foreground">Alerts for this SLA</div>
+                  <div className="text-xs text-muted-foreground">Alert for this SLA only</div>
                   <div className="text-sm font-semibold">{data.alertEnabled ? "Enabled" : "Disabled"}</div>
                 </div>
                 <span className={cn("grid h-8 w-8 place-items-center rounded-md", data.alertEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>

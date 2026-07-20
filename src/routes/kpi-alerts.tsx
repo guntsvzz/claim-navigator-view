@@ -122,6 +122,21 @@ function KpiAlertsPage() {
     );
   }
 
+  function handleToggleAllAlerts(clientId: string, enable: boolean) {
+    if (readOnly) return;
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id !== clientId) return c;
+        const nextData = { ...c.data };
+        (Object.keys(nextData) as SlaId[]).forEach((slaId) => {
+          const d = nextData[slaId];
+          if (d) nextData[slaId] = { ...d, alertEnabled: enable };
+        });
+        return { ...c, data: nextData };
+      }),
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* ---------------- Header ---------------- */}
@@ -200,6 +215,7 @@ function KpiAlertsPage() {
           onSelectClient={(id) => setSelectedId(id)}
           onSetThreshold={handleSetThreshold}
           onToggleAlert={handleToggleAlert}
+          onToggleAllAlerts={handleToggleAllAlerts}
         />
       ) : (
         <PortfolioOverview
