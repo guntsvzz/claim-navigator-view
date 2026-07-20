@@ -544,11 +544,7 @@ export function ClientDetail({
               </button>
             </div>
 
-            {readOnly && (
-              <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-center text-[11px] text-muted-foreground">
-                Executive role — read-only. Edit controls are disabled.
-              </p>
-            )}
+
           </Panel>
 
           <AlertConditionPanel readOnly={readOnly} targetPct={targetPct} />

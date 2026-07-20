@@ -13,7 +13,7 @@ import type { ViewMode } from "./mock-data";
  *  - Monthly totals sum to annual totals.
  * ==========================================================================*/
 
-export type Role = "Team Lead" | "Executive";
+export type Role = "Team Lead";
 export type LoadState = "ready" | "loading" | "empty" | "error";
 export type SlaHealth = "onTarget" | "atRisk" | "belowTarget";
 export type Risk = "Low" | "Medium" | "High";
