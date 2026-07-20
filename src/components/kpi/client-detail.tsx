@@ -186,62 +186,47 @@ export function ClientDetail({
 
   return (
     <div className="space-y-2">
-      {/* Breadcrumb + back + client switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={onBack}>
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back
-          </Button>
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs">
-            <button onClick={onBack} className="text-muted-foreground hover:text-foreground hover:underline">
-              All clients
-            </button>
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-semibold">{client.name}</span>
-          </nav>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Switch client</span>
-          <Select value={client.id} onValueChange={onSelectClient}>
-            <SelectTrigger className="h-7 w-[180px] text-xs" aria-label="Switch client">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Master alert toggle */}
+      {/* Alert status + SLA tabs — single combined row */}
       <div className={cn(
-        "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-colors",
+        "flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition-colors",
         allEnabled ? "border-primary/40 bg-primary/5" : "border-border bg-card",
       )}>
-        <div className="flex items-center gap-2.5">
-          <span className={cn(
-            "grid h-7 w-7 shrink-0 place-items-center rounded-md",
-            allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-          )}>
-            {allEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-          </span>
-          <div>
-            <div className="text-sm font-semibold leading-tight">
-              Alerts for {client.name}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {noneEnabled
-                ? "All alerts disabled — no notifications will fire"
-                : allEnabled
-                  ? `All ${contracted.length} SLA alerts enabled`
-                  : `${enabledCount} of ${contracted.length} SLA alerts enabled`}
-            </div>
-          </div>
+        {/* Bell icon */}
+        <span className={cn(
+          "grid h-7 w-7 shrink-0 place-items-center rounded-md",
+          allEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+        )}>
+          {allEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+        </span>
+
+        {/* SLA tabs inline */}
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Select SLA">
+          {contracted.map((c) => {
+            const active = c.slaId === sla.slaId;
+            return (
+              <button
+                key={c.slaId}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSelectedSla(c.slaId)}
+                className={cn(
+                  "flex flex-col items-start rounded-md border px-3 py-1 text-left transition-colors",
+                  active
+                    ? "border-[#1a3a6b] bg-[#1a3a6b] text-white shadow-sm"
+                    : "border-border bg-card hover:bg-accent/50",
+                )}
+              >
+                <span className="text-xs font-semibold">{c.def.name}</span>
+                <span className={cn("text-[10px]", active ? "text-white/75" : "text-muted-foreground")}>
+                  Target &lt; {c.target.target} {c.target.unit}
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Alert enable/disable controls pushed to the right */}
+        <div className="ml-auto flex items-center gap-2">
           {!noneEnabled && !allEnabled && (
             <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
               Partial
@@ -262,32 +247,6 @@ export function ClientDetail({
             )}
           </Button>
         </div>
-      </div>
-
-      {/* SLA selector tabs */}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Select SLA">
-        {contracted.map((c) => {
-          const active = c.slaId === sla.slaId;
-          return (
-            <button
-              key={c.slaId}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSelectedSla(c.slaId)}
-              className={cn(
-                "flex flex-col items-start rounded-md border px-3 py-1.5 text-left transition-colors",
-                active
-                  ? "border-[#1a3a6b] bg-[#1a3a6b] text-white shadow-sm"
-                  : "border-border bg-card hover:bg-accent/50",
-              )}
-            >
-              <span className="text-xs font-semibold">{c.def.name}</span>
-              <span className={cn("text-[10px]", active ? "text-white/75" : "text-muted-foreground")}>
-                Target &lt; {c.target.target} {c.target.unit}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       {/* ---- Report body ---- */}

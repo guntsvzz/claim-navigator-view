@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useView } from "@/lib/view-store";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   INITIAL_CLIENTS,
@@ -115,28 +122,59 @@ function KpiAlertsPage() {
       {/* ---------------- Header ---------------- */}
       <section className="rounded-lg border border-border bg-card px-4 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Left: title block OR breadcrumb when inside a client */}
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               Key Account Management
             </div>
             <h1 className="text-lg font-bold tracking-tight leading-tight">KPI &amp; SLA Alerts</h1>
-            <p className="text-xs text-muted-foreground">
-              SLA performance, thresholds &amp; predictive risk per client
-            </p>
+            {!selectedClient && (
+              <p className="text-xs text-muted-foreground">
+                SLA performance, thresholds &amp; predictive risk per client
+              </p>
+            )}
           </div>
 
+          {/* Right: breadcrumb + switch (client view) OR updated + refresh (overview) */}
           <div className="flex flex-wrap items-center gap-2">
+            {selectedClient ? (
+              <>
+                <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => setSelectedId(null)}>
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back
+                </Button>
+                <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs">
+                  <button onClick={() => setSelectedId(null)} className="text-muted-foreground hover:text-foreground hover:underline">
+                    All clients
+                  </button>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-semibold">{selectedClient.name}</span>
+                </nav>
+                <span className="text-xs text-muted-foreground hidden sm:inline">Switch:</span>
+                <Select value={selectedClient.id} onValueChange={(id) => setSelectedId(id)}>
+                  <SelectTrigger className="h-7 w-[160px] text-xs" aria-label="Switch client">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {scopedClients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="h-4 w-px bg-border" />
+              </>
+            ) : null}
             <div className="hidden items-center text-xs text-muted-foreground sm:flex">
               Updated {updatedAt}
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-2"
+              className="h-7 gap-1.5 text-xs"
               onClick={handleRefresh}
               disabled={loadState === "loading"}
             >
-              <RefreshCw className={cn("h-4 w-4", loadState === "loading" && "animate-spin")} />
+              <RefreshCw className={cn("h-3.5 w-3.5", loadState === "loading" && "animate-spin")} />
               Refresh
             </Button>
           </div>
